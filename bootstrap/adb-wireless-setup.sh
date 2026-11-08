@@ -102,40 +102,62 @@ case "$PP$CP" in *[!0-9]*) ao_die "ports must be numeric (got '$PP' / '$CP')" ;;
 [ "$PP" = "$CP" ] && ao_die "pairing and connect ports are identical ($PP) — they must differ"
 
 pr_out=""
-attempt_pair() { # attempt_pair <host> <port>
-  ao_info "pairing $1:$2"
-  pr_out="$("$AO_ADB" pair "$1:$2" "$CODE" 2>&1)"
-  printf '%s\n' "$pr_out" | sed 's/^/    /'
-  printf '%s' "$pr_out" | grep -qi 'Successfully paired'
+attempt_pair() { # attempt_pair <host> <port> -> 0 on success (retries transient 35.x bug)
+  local h="$1" p="$2" n
+  for n in 1 2 3 4; do
+    ao_info "pairing $h:$p (attempt $n)"
+    pr_out="$("$AO_ADB" pair "$h:$p" "$CODE" 2>&1)"
+    printf '%s\n' "$pr_out" | sed 's/^/    /'
+    printf '%s' "$pr_out" | grep -qi 'Successfully paired' && return 0
+    printf '%s' "$pr_out" | grep -qi 'already paired' && return 0
+    sleep 1
+  done
+  return 1
 }
 
-PAIR_H=""; PAIR_P=""; CONN_H=""; CONN_P=""
-if attempt_pair "$PH" "$PP"; then
-  ao_ok "paired"; PAIR_H="$PH"; PAIR_P="$PP"; CONN_H="$CH"; CONN_P="$CP"
-elif attempt_pair "$CH" "$CP"; then
-  ao_warn "addresses were swapped — corrected"; PAIR_H="$CH"; PAIR_P="$CP"; CONN_H="$PH"; CONN_P="$PP"
-else
-  ao_warn "pairing failed on both addresses"
-  case "$pr_out" in
-    *"already paired"*) ao_info "'already paired' — continuing to connect"; CONN_H="$CH"; CONN_P="$CP" ;;
-    *)
-      echo
-      echo "Do it by hand and paste the output:"
-      echo "  adb pair $PH:$PP $CODE"
-      echo "  adb connect $CH:$CP"
-      exit 1 ;;
-  esac
-fi
+# Candidate hosts: the pasted IP(s) plus loopback (self-connect works on
+# 127.0.0.1 because adbd/pairing listen there too).
+HOSTS=("$PH")
+[ "$CH" != "$PH" ] && HOSTS+=("$CH")
+case " ${HOSTS[*]} " in *" 127.0.0.1 "*) ;; *) HOSTS+=("127.0.0.1") ;; esac
+
+PAIR_USED=""; PAIRED=0
+for h in "${HOSTS[@]}"; do
+  for p in "$PP" "$CP"; do
+    if attempt_pair "$h" "$p"; then PAIRED=1; PAIR_USED="$h:$p"; break 2; fi
+  done
+done
+
+[ "$PAIRED" = 1 ] && ao_ok "paired via $PAIR_USED" || {
+  ao_warn "pairing failed on every address/port combination"
+  echo
+  echo "Retry by hand (the 35.x 'protocol fault' is often transient — run it twice):"
+  echo "  adb pair $PH:$PP $CODE   ;   adb pair $PH:$PP $CODE"
+  echo "  adb connect $CH:$CP"
+  echo "Also check: Wi-Fi association is ON (wireless debugging wants one)."
+  exit 1
+}
 
 sleep 1
-"$AO_ADB" connect "$CONN_H:$CONN_P" >/dev/null 2>&1 || true
+# Connect: try every host/port pair until `adb shell` actually responds.
+CONN_H=""; CONN_P=""; CONNECTED=0
+for h in "${HOSTS[@]}"; do
+  for p in "$CP" "$PP"; do
+    ao_info "connect $h:$p"
+    "$AO_ADB" connect "$h:$p" >/dev/null 2>&1 || true
+    if verify "$h" "$p"; then CONN_H="$h"; CONN_P="$p"; CONNECTED=1; break 2; fi
+  done
+done
 
-if ! verify "$CONN_H" "$CONN_P" && [ -n "$PAIR_H" ]; then
-  ao_warn "shell not up on $CONN_H:$CONN_P — trying $PAIR_H:$PAIR_P"
-  verify "$PAIR_H" "$PAIR_P" && { CONN_H="$PAIR_H"; CONN_P="$PAIR_P"; }
+if [ "$CONNECTED" = 1 ]; then
+  # Leave exactly ONE device connected so ao_target has no ambiguity: the
+  # brute-force connect above may have attached several endpoints.
+  "$AO_ADB" disconnect >/dev/null 2>&1 || true
+  "$AO_ADB" connect "$CONN_H:$CONN_P" >/dev/null 2>&1 || true
+  sleep 1
 fi
 
-if verify "$CONN_H" "$CONN_P"; then
+if [ "$CONNECTED" = 1 ] && verify "$CONN_H" "$CONN_P"; then
   printf 'AO_HOST=%s\nAO_CONNECT_PORT=%s\n' "$CONN_H" "$CONN_P" > "$ENVF"
   cat > "$STATE/adb-connect.sh" <<EOF
 #!/usr/bin/env bash

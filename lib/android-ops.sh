@@ -60,7 +60,7 @@ _ao_pick_target() {
   local devs local_t n
   devs="$(_ao_adb_raw devices 2>/dev/null | awk 'NR>1 && $2=="device"{print $1}')"
   [ -n "$devs" ] || ao_die "no adb device connected. USB: plug in + authorise. Wireless: run bootstrap/adb-wireless-setup.sh. See docs/PAIRING.md"
-  local_t="$(printf '%s\n' "$devs" | grep -E '^localhost:' | head -1 || true)"
+  local_t="$(printf '%s\n' "$devs" | grep -E '^(localhost|127\.0\.0\.1):' | head -1 || true)"
   [ -n "$local_t" ] && { printf '%s' "$local_t"; return 0; }
   n="$(printf '%s\n' "$devs" | grep -c . )"
   if [ "$n" -gt 1 ]; then
