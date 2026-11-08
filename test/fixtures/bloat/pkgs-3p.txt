@@ -1,0 +1,6 @@
+package:com.example.game
+package:com.facebook.katana
+package:com.netflix.partner.google
+package:com.unused.dinosaur
+package:com.microsoft.office.word
+package:org.fdroid.fdroid

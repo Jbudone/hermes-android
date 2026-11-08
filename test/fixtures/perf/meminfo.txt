@@ -1,0 +1,5 @@
+Total RAM: 7,800,000K (status normal)
+ Free RAM: 1,200,000K
+ Used RAM: 6,100,000K
+ Lost RAM: 500,000K
+   ZRAM: 400,000K

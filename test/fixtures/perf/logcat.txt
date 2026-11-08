@@ -1,0 +1,2 @@
+11-08 09:01:00.000  3000  3000 I ActivityManager: ANR in com.example.slow
+11-08 09:01:00.100  3000  3000 I ActivityManager: Reason: Input dispatching timed out

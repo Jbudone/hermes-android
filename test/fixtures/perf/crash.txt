@@ -1,0 +1,2 @@
+11-08 09:00:01.123  1234  1234 E AndroidRuntime: FATAL EXCEPTION: main
+11-08 09:00:01.124  1234  1234 E AndroidRuntime: Process: com.example.crash, PID: 1234

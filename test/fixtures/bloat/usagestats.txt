@@ -1,0 +1,9 @@
+  package=com.unused.dinosaur
+    lastTimeUsed=1600000000
+    totalTimeInForeground=12000
+  package=com.example.game
+    lastTimeUsed=1793400000
+    totalTimeInForeground=900000
+  package=com.facebook.katana
+    lastTimeUsed=1700000000
+    totalTimeInForeground=30000

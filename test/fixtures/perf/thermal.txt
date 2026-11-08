@@ -1,0 +1,4 @@
+Current temperatures from HAL:
+  Temperature{mValue=38.5, mType=0, mName=CPU, mStatus=0}
+  Temperature{mValue=47.2, mType=1, mName=GPU, mStatus=2}
+  Temperature{mValue=41.0, mType=2, mName=BATTERY, mStatus=0}

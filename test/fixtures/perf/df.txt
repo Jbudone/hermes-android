@@ -1,0 +1,3 @@
+Filesystem       Size  Used Avail Use% Mounted on
+/dev/block/dm-5   110G  100G   10G  91% /data
+tmpfs             3.7G  1.2M  3.7G   1% /dev

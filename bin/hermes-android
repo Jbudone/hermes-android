@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# hermes-android — one dispatcher for the whole toolkit.
+#
+#   hermes-android doctor                 environment + device self-check
+#   hermes-android perf [--json]          performance report + findings
+#   hermes-android perf-fix [--dry-run]   apply safe perf remediations
+#   hermes-android bloat [--json]         bloat / unused-app audit
+#   hermes-android bloat-strip [--dry-run] remove or freeze selected bloat
+#   hermes-android insights [--json]      battery / wakelock / storage insights
+#   hermes-android tasker-run <Task> [p1 p2]   run a named Tasker task
+#   hermes-android tasker-signal <EVENT> [data] broadcast a Hermes->Tasker signal
+#
+# Works from a PC (adb over USB/wireless) and on-device (adb-to-self in Termux).
+
+set -o pipefail
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(dirname -- "$HERE")"
+# shellcheck source=../lib/android-ops.sh
+. "$ROOT/lib/android-ops.sh"
+
+cmd="${1:-help}"; shift || true
+case "$cmd" in
+  doctor)        exec "$ROOT/commands/doctor.sh" "$@" ;;
+  perf|perf-report) exec "$ROOT/commands/perf-report.sh" "$@" ;;
+  perf-fix)      exec "$ROOT/commands/perf-fix.sh" "$@" ;;
+  bloat|bloat-audit) exec "$ROOT/commands/bloat-audit.sh" "$@" ;;
+  bloat-strip)   exec "$ROOT/commands/bloat-strip.sh" "$@" ;;
+  insights)      exec "$ROOT/commands/insights.sh" "$@" ;;
+  tasker-run)    exec "$ROOT/commands/tasker-run.sh" "$@" ;;
+  tasker-signal) exec "$ROOT/commands/tasker-signal.sh" "$@" ;;
+  tasker-gen)    exec "$ROOT/tasker/gen_tsk.py" "$@" ;;
+  help|-h|--help|"")
+    sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    ;;
+  *) ao_die "unknown command: $cmd (try: hermes-android help)" ;;
+esac

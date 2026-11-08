@@ -1,0 +1,2 @@
+Package Names: com.example.game,com.facebook.katana,com.android.systemui,com.unused.dinosaur,com.samsung.android.bixby.agent
+App Sizes: 314572800,157286400,52428800,104857600,20971520

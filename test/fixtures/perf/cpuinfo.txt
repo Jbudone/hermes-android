@@ -1,0 +1,7 @@
+Load: 3.42 / 3.10 / 2.88
+CPU usage from 30000ms to 0ms ago (2026-11-08 09:00:00.000):
+  47% 12345/com.example.heavy: 30% user + 17% kernel / faults: 1200 minor
+  9.4% 999/com.android.systemui: 6% user + 3.4% kernel
+  2.1% 500/com.android.phone: 1.5% user + 0.6% kernel
+  1.0% 88/kswapd0: 0% user + 1% kernel
+3.1% TOTAL: 2.0% user + 1.0% kernel
