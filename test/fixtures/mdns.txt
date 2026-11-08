@@ -1,0 +1,3 @@
+List of discovered mdns services
+adb-R5CT20ABCDE-xyz	_adb-tls-pairing._tcp	172.27.110.73:37959
+adb-R5CT20ABCDE-xyz	_adb-tls-connect._tcp	172.27.110.73:34123

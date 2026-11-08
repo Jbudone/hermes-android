@@ -46,6 +46,10 @@ expect_contains "$bout" "com.samsung.android.bixby.agent" "flags bixby bloat"
 expect_contains "$bout" "com.unused.dinosaur" "flags unused app"
 expect_contains "$bout" "300.0" "reads app sizes (300 MB game)"
 
+echo "== 6. adb mdns port parser =="
+mdnsres="$( ( . "$ROOT/lib/android-ops.sh"; ao_parse_mdns < "$FIX/mdns.txt" ) )"
+expect_contains "$mdnsres" "37959 34123" "parses pairing=37959 connect=34123"
+
 rm -rf "$TMP"
 echo
 printf 'tests: %d passed, %d failed\n' "$pass" "$fail"

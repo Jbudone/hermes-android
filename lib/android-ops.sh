@@ -123,3 +123,14 @@ ao_human_bytes() { # stdin: integer bytes
 ao_pkg_of() { printf '%s' "$1" | sed -E 's#/[^ ]*$##'; }
 
 ao_now_epoch() { date +%s; }
+
+# Parse `adb mdns services` output into "<pair_port> <connect_port>".
+# Lines look like:  adb-XXXX\t_adb-tls-pairing._tcp\t172.27.110.73:37959
+# Missing values come back as "-".
+ao_parse_mdns() {
+  awk '
+    /_adb-tls-pairing\._tcp/ { n=split($NF,a,":"); pair=a[n] }
+    /_adb-tls-connect\._tcp/ { n=split($NF,a,":"); conn=a[n] }
+    END { print (pair==""?"-":pair), (conn==""?"-":conn) }
+  '
+}
