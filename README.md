@@ -19,9 +19,10 @@ On the phone (Termux, from F-Droid):
 bash bootstrap/termux-bootstrap.sh
 ```
 
-That installs Hermes itself (from source — the official Termux APT package is
-currently broken upstream), this toolkit, the Termux:Tasker scripts, and wires
-up the `hermes-android` command. Then:
+That installs Hermes itself (from the Termux **canary** APT channel — the
+`stable` channel is currently broken upstream and its index 404s — with a
+from-source build as automatic fallback), this toolkit, the Termux:Tasker
+scripts, and wires up the `hermes-android` command. Then:
 
 ```bash
 hermes setup                                 # provider/model
