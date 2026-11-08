@@ -46,9 +46,11 @@ expect_contains "$bout" "com.samsung.android.bixby.agent" "flags bixby bloat"
 expect_contains "$bout" "com.unused.dinosaur" "flags unused app"
 expect_contains "$bout" "300.0" "reads app sizes (300 MB game)"
 
-echo "== 6. adb mdns port parser =="
+echo "== 6. adb mdns + address parsers =="
 mdnsres="$( ( . "$ROOT/lib/android-ops.sh"; ao_parse_mdns < "$FIX/mdns.txt" ) )"
 expect_contains "$mdnsres" "37959 34123" "parses pairing=37959 connect=34123"
+splitres="$( ( . "$ROOT/lib/android-ops.sh"; ao_split_addr "172.27.110.73:44569" ) )"
+expect_contains "$splitres" "172.27.110.73 44569" "splits IP:port address"
 
 rm -rf "$TMP"
 echo

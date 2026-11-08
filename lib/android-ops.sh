@@ -134,3 +134,10 @@ ao_parse_mdns() {
     END { print (pair==""?"-":pair), (conn==""?"-":conn) }
   '
 }
+
+# Normalise "host:port" (tolerating spaces/quotes) into "<host> <port>".
+ao_split_addr() {
+  local a="${1:-}"
+  a="${a// /}"; a="${a//\"/}"; a="${a//\'/}"
+  printf '%s %s' "${a%:*}" "${a##*:}"
+}

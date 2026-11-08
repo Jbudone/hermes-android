@@ -24,10 +24,14 @@ This makes the phone self-sufficient: Hermes runs in Termux and drives itself.
 1. Install Termux (F-Droid), then `bash bootstrap/termux-bootstrap.sh`.
 2. In Termux: `pkg install android-tools` (bootstrap does it).
 3. Phone: Developer options → **Wireless debugging** ON.
-4. `bash bootstrap/adb-wireless-setup.sh` (host defaults to `127.0.0.1`).
-   Enter the pairing port+code and the connect port.
-5. The toolkit auto-detects the `localhost:*` target, so `hermes-android`
-   commands just work with no env var.
+4. `bash bootstrap/adb-wireless-setup.sh` — paste the **two full addresses** it
+   asks for, exactly as the phone shows them:
+   - the pairing dialog's `IP:port` + the 6-digit code
+   - the main screen's `IP:port` (the connect address)
+   Use the IP the phone shows (`172.27.x.x`, `192.168.x.x`, …) — **not**
+   `127.0.0.1`. The pairing server binds to that interface, so loopback fails.
+5. The toolkit auto-detects the single connected `IP:port` target, so
+   `hermes-android` commands just work with no env var.
 
 Wireless-debugging ports change every time it is toggled. Reconnect with:
 `bash bootstrap/adb-wireless-setup.sh --reconnect`
