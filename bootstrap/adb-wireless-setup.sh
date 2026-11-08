@@ -75,6 +75,18 @@ echo "  • 'Pair device with pairing code'  → its own PORT + a 6-digit code"
 echo "  • the main screen 'IP address & Port' → the CONNECT port"
 echo
 
+# Android requires a Wi-Fi ASSOCIATION for wireless-debugging pairing (internet
+# not needed). On mobile-data-only, `adb pair` dies at the protocol level even
+# though the port looks reachable.
+if ao_have termux-wifi-connectioninfo; then
+  if ! termux-wifi-connectioninfo 2>/dev/null | grep -q '"supplicant_state": *"COMPLETED"'; then
+    ao_warn "No Wi-Fi association detected."
+    ao_warn "Android requires being joined to a Wi-Fi network to PAIR (internet not needed)."
+    ao_warn "Join any Wi-Fi (or enable the phone's hotspot) and run this again."
+    echo
+  fi
+fi
+
 read -r -p "Device IP (e.g. 172.27.110.73): " DEV_RAW
 DEV_RAW="$(printf '%s' "$DEV_RAW" | tr -cd '0-9.:')"
 read -r DEV_IP _junk <<<"$(ao_split_addr "$DEV_RAW")"

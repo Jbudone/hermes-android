@@ -24,6 +24,9 @@ This makes the phone self-sufficient: Hermes runs in Termux and drives itself.
 1. Install Termux (F-Droid), then `bash bootstrap/termux-bootstrap.sh`.
 2. In Termux: `pkg install android-tools` (bootstrap does it).
 3. Phone: Developer options → **Wireless debugging** ON.
+   **The phone must be joined to a Wi-Fi network to pair** (internet is not
+   required — a hotspot or an offline router works). On mobile data only,
+   `adb pair` fails at the protocol level.
 4. `bash bootstrap/adb-wireless-setup.sh` — paste the **two full addresses** it
    asks for, exactly as the phone shows them:
    - the pairing dialog's `IP:port` + the 6-digit code
