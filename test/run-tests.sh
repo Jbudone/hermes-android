@@ -51,6 +51,28 @@ mdnsres="$( ( . "$ROOT/lib/android-ops.sh"; ao_parse_mdns < "$FIX/mdns.txt" ) )"
 expect_contains "$mdnsres" "37959 34123" "parses pairing=37959 connect=34123"
 splitres="$( ( . "$ROOT/lib/android-ops.sh"; ao_split_addr "172.27.110.73:44569" ) )"
 expect_contains "$splitres" "172.27.110.73 44569" "splits IP:port address"
+bareport="$( ( . "$ROOT/lib/android-ops.sh"; ao_split_addr "38959" ) )"
+expect_contains "$bareport" "- 38959" "bare port has no host (not 38959:38959)"
+
+echo "== 7. pairing flow (fake adb) =="
+FAKE="$HERE/fake-adb/adb"; chmod +x "$FAKE"
+run_pair() { # run_pair <pairport> <code> <connport> <logfile>
+  : > "$4"
+  printf '172.27.110.73\n%s\n%s\n%s\n' "$1" "$2" "$3" \
+    | AO_ADB="$FAKE" FAKE_ADB_LOG="$4" bash "$ROOT/bootstrap/adb-wireless-setup.sh" >/dev/null 2>&1
+}
+PLOG="$TMP/pair.log"
+run_pair 43867 517162 36895 "$PLOG"
+expect_contains "$(cat "$PLOG")" "pair 172.27.110.73:43867 517162" "correct ports -> pairs on IP:pairport"
+expect_contains "$(cat "$PLOG")" "connect 172.27.110.73:36895" "correct ports -> connects on IP:connectport"
+PLOG2="$TMP/pair-swapped.log"
+run_pair 36895 517162 43867 "$PLOG2"
+expect_contains "$(cat "$PLOG2")" "pair 172.27.110.73:43867 517162" "swapped ports -> still pairs on the right one"
+expect_contains "$(cat "$PLOG2")" "connect 172.27.110.73:36895" "swapped ports -> connects on the right one"
+PLOG3="$TMP/pair-bare.log"
+: > "$PLOG3"
+out3="$(printf '38959\n36895\n123456\n36895\n' | AO_ADB="$FAKE" FAKE_ADB_LOG="$PLOG3" bash "$ROOT/bootstrap/adb-wireless-setup.sh" 2>&1)"
+expect_contains "$out3" "looks like a port, not an IP" "bare port in the IP field is rejected"
 
 rm -rf "$TMP"
 echo

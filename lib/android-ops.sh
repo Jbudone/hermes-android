@@ -136,8 +136,14 @@ ao_parse_mdns() {
 }
 
 # Normalise "host:port" (tolerating spaces/quotes) into "<host> <port>".
+# A bare value with no colon comes back as "- <value>" so callers can tell
+# "port only" (use a default host) from "host:port".
 ao_split_addr() {
   local a="${1:-}"
   a="${a// /}"; a="${a//\"/}"; a="${a//\'/}"
-  printf '%s %s' "${a%:*}" "${a##*:}"
+  if [ "${a#*:}" = "$a" ]; then
+    printf '%s %s' "-" "$a"
+  else
+    printf '%s %s' "${a%:*}" "${a##*:}"
+  fi
 }

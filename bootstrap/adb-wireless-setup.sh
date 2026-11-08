@@ -68,25 +68,38 @@ fi
 # ------------------------------------------------------------------- pair -----
 ao_info "Android wireless-debugging pairing"
 echo
-echo "Open Settings → Developer options → Wireless debugging and copy BOTH"
-echo "addresses exactly as shown (they differ, and neither is 127.0.0.1):"
-echo "  • 'Pair device with pairing code'  → an IP:port + a 6-digit code"
-echo "  • the main screen 'IP address & Port' → the CONNECT IP:port"
+echo "Open Settings → Developer options → Wireless debugging. It shows ONE IP and"
+echo "TWO DIFFERENT ports:"
+echo "  • the IP (same on both screens), e.g. 172.27.110.73"
+echo "  • 'Pair device with pairing code'  → its own PORT + a 6-digit code"
+echo "  • the main screen 'IP address & Port' → the CONNECT port"
 echo
 
-read -r -p "Pairing address (IP:port from the pairing dialog): " PAIR_ADDR
+read -r -p "Device IP (e.g. 172.27.110.73): " DEV_RAW
+DEV_RAW="$(printf '%s' "$DEV_RAW" | tr -cd '0-9.:')"
+read -r DEV_IP _junk <<<"$(ao_split_addr "$DEV_RAW")"
+if [ "$DEV_IP" = "-" ]; then
+  case "$DEV_RAW" in
+    *.*) DEV_IP="$DEV_RAW" ;;                       # bare IP, no port
+    *) ao_die "that looks like a port, not an IP — enter the IP shown (e.g. 172.27.110.73)" ;;
+  esac
+fi
+[ -n "$DEV_IP" ] || ao_die "need the device IP"
+
+read -r -p "Pairing port (from 'Pair with device' dialog): " P_RAW
 read -r -p "Pairing code (6 digits): " CODE
-read -r -p "Connect address (IP:port from the main screen):  " CONN_ADDR
+read -r -p "Connect port (from the main screen): " C_RAW
+
+P_RAW="$(printf '%s' "$P_RAW" | tr -cd '0-9.:')"
+C_RAW="$(printf '%s' "$C_RAW" | tr -cd '0-9.:')"
+read -r PH PP <<<"$(ao_split_addr "$P_RAW")"; [ "$PH" = "-" ] && PH="$DEV_IP"
+read -r CH CP <<<"$(ao_split_addr "$C_RAW")"; [ "$CH" = "-" ] && CH="$DEV_IP"
 
 [ -n "$CODE" ] || ao_die "no pairing code given"
-read -r PH PP <<<"$(ao_split_addr "$PAIR_ADDR")"
-read -r CH CP <<<"$(ao_split_addr "$CONN_ADDR")"
-[ -n "$PH" ] && [ -n "$PP" ] || ao_die "could not parse pairing address '$PAIR_ADDR' (want IP:port)"
-[ -n "$CH" ] && [ -n "$CP" ] || ao_die "could not parse connect address '$CONN_ADDR' (want IP:port)"
-if [ "$PP" = "$CP" ] && [ "$PH" = "$CH" ]; then
-  ao_die "both addresses are identical ($PH:$PP) — the pairing dialog and main screen show different ports"
-fi
+{ [ -n "$PP" ] && [ "$PP" != "-" ]; } || ao_die "no pairing port given"
+{ [ -n "$CP" ] && [ "$CP" != "-" ]; } || ao_die "no connect port given"
 case "$PP$CP" in *[!0-9]*) ao_die "ports must be numeric (got '$PP' / '$CP')" ;; esac
+[ "$PP" = "$CP" ] && ao_die "pairing and connect ports are identical ($PP) — they must differ"
 
 pr_out=""
 attempt_pair() { # attempt_pair <host> <port>

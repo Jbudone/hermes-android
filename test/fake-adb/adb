@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Fake adb for offline tests. Records argv to $FAKE_ADB_LOG and emulates the
+# minimal surface adb-wireless-setup.sh uses. The "correct" pairing port is
+# whatever $FAKE_PAIR_OK contains (default 43867); everything else fails the
+# way a wrong endpoint does.
+log="${FAKE_ADB_LOG:-/tmp/fake-adb.log}"
+printf '%s\n' "$*" >> "$log"
+
+case "${1:-}" in
+  version) echo "Android Debug Bridge version 1.0.41"; exit 0 ;;
+  start-server) exit 0 ;;
+  kill-server) exit 0 ;;
+  devices) echo "List of devices attached"; exit 0 ;;
+  mdns) exit 0 ;;   # no services -> force the interactive path
+  pair)
+    addr="$2"; want="${FAKE_PAIR_OK:-43867}"
+    case "$addr" in
+      *":$want")
+        echo "Successfully paired to $addr [guid=adb-fake]"; exit 0 ;;
+      *)
+        echo "error: protocol fault (couldn't read status message): Success" >&2; exit 1 ;;
+    esac ;;
+  connect) echo "connected to $2"; exit 0 ;;
+  -s)
+    shift; # -s HOST:PORT ...
+    case "${1:-}" in
+      *":${FAKE_CONN_OK:-36895}") exit 0 ;;
+      *) exit 1 ;;
+    esac ;;
+  *) exit 0 ;;
+esac
