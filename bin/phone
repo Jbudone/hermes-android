@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# phone — find the Android phone, target it, and run the toolkit.
+#
+#   phone                  status (target, model, battery, storage)
+#   phone <cmd> [args...]  run `hermes-android <cmd> ...`  (perf, bloat, insights…)
+#   phone shell "<cmd>"    run one shell command on the phone
+#   phone connect          resolve/connect and print the adb target
+#   phone env              print `export AO_ADB_SERIAL=…` for eval
+#   phone adb <args...>    raw adb against the resolved device
+#
+# Target resolution, in order:
+#   1. USB                (most stable; a serial with no ':' in it)
+#   2. wireless via mDNS  (adb mdns services → _adb-tls-connect._tcp → connect)
+#   3. saved ports.env    ($TMPDIR/ao-run/ports.env from adb-wireless-setup.sh)
+#
+# Set PHONE_PREFER=wifi to skip USB and use the wireless path.
+set -uo pipefail
+# Resolve symlinks so this works when linked into ~/.local/bin (or $PREFIX/bin).
+SELF="$0"
+while [ -L "$SELF" ]; do
+  _d="$(cd -P "$(dirname "$SELF")" && pwd)"
+  SELF="$(readlink "$SELF")"
+  case "$SELF" in /*) ;; *) SELF="$_d/$SELF" ;; esac
+done
+HERE="$(cd -P "$(dirname "$SELF")" && pwd)"
+ROOT="$(dirname -- "$HERE")"
+# shellcheck source=../lib/android-ops.sh
+. "$ROOT/lib/android-ops.sh"
+
+STATE="${TMPDIR:-/tmp}/ao-run"; ENVF="$STATE/ports.env"
+
+resolve() {
+  local usb addr host port
+  if [ "${PHONE_PREFER:-usb}" != "wifi" ]; then
+    usb="$("$AO_ADB" devices 2>/dev/null | awk 'NR>1 && $2=="device" && $1 !~ /:/{print $1; exit}')"
+    [ -n "$usb" ] && { printf '%s' "$usb"; return 0; }
+  fi
+  addr="$("$AO_ADB" mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/{print $NF; exit}')"
+  if [ -n "$addr" ]; then
+    "$AO_ADB" connect "$addr" >/dev/null 2>&1 || true
+    if "$AO_ADB" -s "$addr" shell true >/dev/null 2>&1; then printf '%s' "$addr"; return 0; fi
+  fi
+  if [ -f "$ENVF" ]; then
+    # shellcheck disable=SC1090
+    . "$ENVF"
+    if [ -n "${AO_HOST:-}" ] && [ -n "${AO_CONNECT_PORT:-}" ]; then
+      "$AO_ADB" connect "$AO_HOST:$AO_CONNECT_PORT" >/dev/null 2>&1 || true
+      if "$AO_ADB" -s "$AO_HOST:$AO_CONNECT_PORT" shell true >/dev/null 2>&1; then
+        printf '%s' "$AO_HOST:$AO_CONNECT_PORT"; return 0
+      fi
+    fi
+  fi
+  return 1
+}
+
+"$AO_ADB" start-server >/dev/null 2>&1 || true
+TGT="$(resolve)" || {
+  echo "phone: not found." >&2
+  echo "  • plug in USB (and authorise), or" >&2
+  echo "  • enable Developer options → Wireless debugging on the same network" >&2
+  exit 1
+}
+export AO_ADB_SERIAL="$TGT"
+
+cmd="${1:-status}"; shift || true
+case "$cmd" in
+  connect) printf '%s\n' "$TGT" ;;
+  env)     printf 'export AO_ADB_SERIAL=%s\n' "$TGT" ;;
+  shell)   "$AO_ADB" -s "$TGT" shell "$*" ;;
+  adb)     "$AO_ADB" -s "$TGT" "$@" ;;
+  status)
+    echo "target:  $TGT"
+    echo "model:   $(ao_model)  (Android $(ao_android_ver), SDK $(ao_sdk))"
+    echo "battery: $(ao_sh "dumpsys battery | grep -E '^  level:' | tr -d ' ' | cut -d: -f2")%"
+    echo "storage: $(ao_sh "df -h /storage/emulated | tail -1" | awk '{print $3" used of "$2" ("$5")"}')"
+    ;;
+  *)       exec "$ROOT/bin/hermes-android" "$cmd" "$@" ;;
+esac

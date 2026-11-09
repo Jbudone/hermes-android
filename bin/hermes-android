@@ -13,7 +13,14 @@
 # Works from a PC (adb over USB/wireless) and on-device (adb-to-self in Termux).
 
 set -o pipefail
-HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks so this works when linked into ~/.local/bin (or $PREFIX/bin).
+SELF="$0"
+while [ -L "$SELF" ]; do
+  _d="$(cd -P "$(dirname "$SELF")" && pwd)"
+  SELF="$(readlink "$SELF")"
+  case "$SELF" in /*) ;; *) SELF="$_d/$SELF" ;; esac
+done
+HERE="$(cd -P "$(dirname "$SELF")" && pwd)"
 ROOT="$(dirname -- "$HERE")"
 # shellcheck source=../lib/android-ops.sh
 . "$ROOT/lib/android-ops.sh"

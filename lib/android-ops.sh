@@ -44,6 +44,10 @@ fi
 
 # ------------------------------------------------------------------- adb core
 AO_ADB="${AO_ADB:-adb}"
+# Fall back to a user-space platform-tools install if adb is not on PATH.
+if ! command -v "$AO_ADB" >/dev/null 2>&1 && [ -x "$HOME/.local/android-platform-tools/platform-tools/adb" ]; then
+  AO_ADB="$HOME/.local/android-platform-tools/platform-tools/adb"
+fi
 AO_ADB_TIMEOUT="${AO_ADB_TIMEOUT:-20}"
 AO_TARGET="${AO_TARGET:-}"
 
