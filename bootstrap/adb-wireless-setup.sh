@@ -35,6 +35,13 @@ done
 ao_have "$AO_ADB" || ao_die "adb not found (host: platform-tools; device: pkg install android-tools)"
 "$AO_ADB" start-server >/dev/null 2>&1 || true
 
+# ADB 35.x has a pairing bug; android-tools 37 fixes it. Warn early.
+ADB_VER="$("$AO_ADB" version 2>/dev/null | sed -n 's/^Version \([0-9][0-9]*\).*/\1/p' | head -1)"
+if [ -n "$ADB_VER" ] && [ "$ADB_VER" -lt 36 ] 2>/dev/null; then
+  ao_warn "your adb reports major version $ADB_VER — 35.x has a pairing bug"
+  ao_warn "fix: pkg upgrade -y android-tools   (Termux now ships 37.0.0, which pairs correctly)"
+fi
+
 STATE="${TMPDIR:-/tmp}/ao-run"; mkdir -p "$STATE"; ENVF="$STATE/ports.env"
 
 # "host:port" -> "<host> <port>"  (tolerates spaces, quotes, stray labels)

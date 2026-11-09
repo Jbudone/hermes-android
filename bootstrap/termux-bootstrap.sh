@@ -48,6 +48,8 @@ say "Installing base packages (git curl gnupg python termux-api android-tools)"
 pkg update -y >/dev/null 2>&1 || true
 pkg install -y git curl gnupg python termux-api android-tools openssl >/dev/null 2>&1 \
   || pkg install -y git curl gnupg python android-tools openssl >/dev/null 2>&1 || true
+# android-tools 35.x has an adb pairing bug; 37 pairs correctly. Upgrade if old.
+pkg upgrade -y android-tools >/dev/null 2>&1 || true
 ok "packages requested"
 
 # --- 2. Hermes ---
