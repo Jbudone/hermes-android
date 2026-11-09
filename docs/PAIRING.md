@@ -43,6 +43,19 @@ This makes the phone self-sufficient: Hermes runs in Termux and drives itself.
 Wireless-debugging ports change every time it is toggled. Reconnect with:
 `bash bootstrap/adb-wireless-setup.sh --reconnect`
 
+### If `adb pair` keeps failing with `protocol fault …: Success`
+
+That is stale pairing/TLS state on the phone (a fresh code + correct ports still
+fail, and even a plain `adb connect` from another machine fails while the TCP
+port is open). Reset it:
+
+1. Developer options → turn **Wireless debugging OFF**.
+2. **Reboot the phone** (this clears the stale pairing state).
+3. Turn Wireless debugging ON, open *Pair device with pairing code*.
+4. Run the script again (it now restarts the adb server first).
+
+Keep the phone unlocked during pairing.
+
 ## Keeping it alive (Android fights background work)
 
 Android may suspend or kill Termux. Mitigations, strongest first:

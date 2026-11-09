@@ -82,7 +82,8 @@ echo
 # not needed). On mobile-data-only, `adb pair` dies at the protocol level even
 # though the port looks reachable.
 if ao_have termux-wifi-connectioninfo; then
-  if ! termux-wifi-connectioninfo 2>/dev/null | grep -q '"supplicant_state": *"COMPLETED"'; then
+  wi="$(termux-wifi-connectioninfo 2>/dev/null)"
+  if [ -n "$wi" ] && ! printf '%s' "$wi" | grep -q '"supplicant_state": *"COMPLETED"'; then
     ao_warn "No Wi-Fi association detected."
     ao_warn "Android requires being joined to a Wi-Fi network to PAIR (internet not needed)."
     ao_warn "Join any Wi-Fi (or enable the phone's hotspot) and run this again."
@@ -117,6 +118,10 @@ case "$PP$CP" in *[!0-9]*) ao_die "ports must be numeric (got '$PP' / '$CP')" ;;
 [ "$PP" = "$CP" ] && ao_die "pairing and connect ports are identical ($PP) — they must differ"
 
 pr_out=""
+ao_info "restarting the adb server (clears stale pairing state)"
+"$AO_ADB" kill-server >/dev/null 2>&1 || true
+"$AO_ADB" start-server >/dev/null 2>&1 || true
+
 attempt_pair() { # attempt_pair <host> <port> -> 0 on success (retries transient 35.x bug)
   local h="$1" p="$2" n
   for n in 1 2 3 4; do
@@ -143,15 +148,12 @@ for h in "${HOSTS[@]}"; do
   done
 done
 
-[ "$PAIRED" = 1 ] && ao_ok "paired via $PAIR_USED" || {
-  ao_warn "pairing failed on every address/port combination"
-  echo
-  echo "Retry by hand (the 35.x 'protocol fault' is often transient — run it twice):"
-  echo "  adb pair $PH:$PP $CODE   ;   adb pair $PH:$PP $CODE"
-  echo "  adb connect $CH:$CP"
-  echo "Also check: Wi-Fi association is ON (wireless debugging wants one)."
-  exit 1
-}
+if [ "$PAIRED" = 1 ]; then
+  ao_ok "paired via $PAIR_USED"
+else
+  ao_warn "pairing failed on every combination — trying to CONNECT anyway"
+  ao_warn "(the device may already be paired; pairing is only needed once)"
+fi
 
 sleep 1
 # Connect: try every host/port pair until `adb shell` actually responds.
@@ -183,8 +185,15 @@ EOF
   ao_info "toolkit auto-detects this target; from a PC: export AO_ADB_SERIAL=$CONN_H:$CONN_P"
   ao_info "reconnect later: bash $HERE/adb-wireless-setup.sh --reconnect"
 else
-  ao_warn "paired but shell still failed. Toggle Wireless debugging off/on and re-run."
-  ao_warn "Keep the phone's screen ON and unlocked during pairing."
+  ao_warn "still no working adb shell."
+  echo
+  echo "If pairing keeps failing with 'protocol fault', the device has stale"
+  echo "pairing state. The reliable reset is:"
+  echo "  1. Developer options → turn Wireless debugging OFF"
+  echo "  2. REBOOT the phone  (this clears the stale TLS/pairing state)"
+  echo "  3. Turn Wireless debugging ON, open 'Pair device with pairing code'"
+  echo "  4. Run this script again"
+  echo "Also keep the phone unlocked during pairing."
   exit 1
 fi
 
