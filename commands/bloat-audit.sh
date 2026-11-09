@@ -29,10 +29,10 @@ mkdir -p "$DIR"
 # --------------------------------------------------------------------- collect
 if [ "$ANALYZE_ONLY" = 0 ]; then
 ao_info "collecting package inventory -> $DIR"
-ao_sh_quiet 'pm list packages -3'                 >"$DIR/pkgs-3p.txt"    2>/dev/null  # third-party
-ao_sh_quiet 'pm list packages -s'                 >"$DIR/pkgs-system.txt" 2>/dev/null # system
-ao_sh_quiet 'pm list packages -d'                 >"$DIR/pkgs-disabled.txt" 2>/dev/null
-ao_sh_quiet 'pm list packages -e'                 >"$DIR/pkgs-enabled.txt" 2>/dev/null
+ao_sh_quiet 'pm list packages --user 0 -3'         >"$DIR/pkgs-3p.txt"    2>/dev/null  # third-party
+ao_sh_quiet 'pm list packages --user 0 -s'         >"$DIR/pkgs-system.txt" 2>/dev/null # system
+ao_sh_quiet 'pm list packages --user 0 -d'         >"$DIR/pkgs-disabled.txt" 2>/dev/null
+ao_sh_quiet 'pm list packages --user 0 -e'         >"$DIR/pkgs-enabled.txt" 2>/dev/null
 ao_sh_quiet 'dumpsys diskstats'                   >"$DIR/diskstats.txt"  2>/dev/null
 ao_sh_quiet 'dumpsys usagestats'                  >"$DIR/usagestats.txt" 2>/dev/null
 ao_sh_quiet 'dumpsys package packages'            >"$DIR/package.txt"    2>/dev/null

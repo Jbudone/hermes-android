@@ -34,7 +34,7 @@ PD="$TMP/perf"; mkdir -p "$PD"; cp "$FIX"/perf/* "$PD"/
 prout="$("$ROOT/commands/perf-report.sh" --analyze-only --dir "$PD" 2>&1)"
 expect_contains "$prout" "com.example.heavy" "detects CPU hog"
 expect_contains "$prout" "HIGH" "flags high severity"
-expect_contains "$prout" "47.2" "detects hot thermal zone"
+expect_contains "$prout" "62.0" "detects hot thermal zone"
 expect_contains "$prout" "91%" "detects /data pressure"
 expect_contains "$prout" "ANR" "detects ANRs"
 

@@ -91,8 +91,8 @@ findings() {
       /Temperature\{/{
         # Temperature{mValue=NN.N, mType=N, mName=..., mStatus=N}
         if (match($0,/mValue=[0-9.]+/)) { v=substr($0,RSTART+7,RLENGTH-7);
-          if (v+0>=45) printf("HIGH|THERM|thermal zone at %s C (throttling risk)\n", v);
-          else if (v+0>=40) printf("MED|THERM|thermal zone at %s C\n", v); }
+          if (v+0>=60) printf("HIGH|THERM|thermal zone at %s C (throttling risk)\n", v);
+          else if (v+0>=50) printf("MED|THERM|thermal zone at %s C (warm)\n", v); }
       }' "$DIR/thermal.txt"
   fi
   # --- Battery (only the "Current Battery Service state" block; Samsung appends
@@ -129,7 +129,7 @@ findings() {
     [ "$bg" -gt 150 ] && echo "MED|MEM|$bg cached procs — heavy background pressure (One UI keeps 100-150 normally)"
   fi
 }
-FL="$DIR/findings.txt"; findings > "$FL"
+FL="$DIR/findings.txt"; findings | awk '!seen[$0]++' > "$FL"
 
 if [ "$JSON" = 1 ]; then
   python3 - "$FL" "$DIR" <<'PY'
