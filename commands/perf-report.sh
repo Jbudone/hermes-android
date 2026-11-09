@@ -95,9 +95,17 @@ findings() {
           else if (v+0>=40) printf("MED|THERM|thermal zone at %s C\n", v); }
       }' "$DIR/thermal.txt"
   fi
-  # --- Battery ---
+  # --- Battery (only the "Current Battery Service state" block; Samsung appends
+  #     a whole ACTION_BATTERY_CHANGED history after it, so cap the input) ---
   if [ -s "$DIR/battery.txt" ]; then
-    awk '/ level:/{printf("LOW|BATT|battery level %s%%\n",$2)} / temperature:/{t=$2; printf("%s|BATT|battery temp %.1f C\n",(t+0>=400?"MED":"LOW"),t/10)} / health:/{printf("LOW|BATT|battery health code %s\n",$2)}' "$DIR/battery.txt"
+    head -30 "$DIR/battery.txt" | awk '
+      /^[ \t]*level:/{lvl=$2} /^[ \t]*temperature:/{t=$2} /^[ \t]*health:/{h=$2} /^[ \t]*status:/{st=$2}
+      END{
+        if(lvl!="") printf("LOW|BATT|battery %s%%\n", lvl)
+        if(t!="")  printf("%s|BATT|battery temp %.1f C\n",(t+0>=400?"MED":"LOW"),t/10)
+        if(h=="2")      printf("OK|BATT|battery health good\n")
+        else if(h!="")  printf("MED|BATT|battery health code %s (not good)\n",h)
+      }'
   fi
   # --- Storage ---
   if [ -s "$DIR/df.txt" ]; then
@@ -118,7 +126,7 @@ findings() {
   if [ -s "$DIR/processes.txt" ]; then
     local bg
     bg="$(grep -c 'Proc #' "$DIR/processes.txt" 2>/dev/null || echo 0)"
-    [ "$bg" -gt 60 ] && echo "MED|MEM|$bg cached procs — heavy background pressure"
+    [ "$bg" -gt 150 ] && echo "MED|MEM|$bg cached procs — heavy background pressure (One UI keeps 100-150 normally)"
   fi
 }
 FL="$DIR/findings.txt"; findings > "$FL"

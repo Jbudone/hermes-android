@@ -44,7 +44,7 @@ fi
 
 # --------------------------------------------------------------------- analyze
 python3 - "$DIR" "$JSON" "$MIN_MB" <<'PY'
-import os,re,json,sys,collections
+import os,re,json,sys,collections,time
 d,as_json,min_mb=sys.argv[1],sys.argv[2]=="1",int(sys.argv[3])
 
 def lines(f):
@@ -62,31 +62,38 @@ third=pkgs("pkgs-3p.txt"); system=pkgs("pkgs-system.txt")
 disabled=pkgs("pkgs-disabled.txt"); enabled=pkgs("pkgs-enabled.txt")
 allpkg=third|system
 
-# --- sizes from dumpsys diskstats (parallel arrays: Package Names / App Sizes) ---
+# --- sizes from dumpsys diskstats (Android 14+ emits JSON-quoted name arrays
+#     and separate App / Data / Cache size arrays; sum them per package) ---
 sizes={}
-Ds=lines("diskstats.txt")
-names=None; appsize=None
-for l in Ds:
+appsize=[]; datasize=[]; cachesize=[]; names=[]
+for l in lines("diskstats.txt"):
     if l.startswith("Package Names:"):
-        names=[x for x in l.split(":",1)[1].strip().strip("[]").split(",") if x]
+        names=re.findall(r'"([^"]+)"', l) or [x.strip() for x in l.split(":",1)[1].strip().strip("[]").split(",") if x.strip()]
+    elif l.startswith("App Data Sizes:"):
+        datasize=[int(x) for x in re.findall(r"\d+", l.split(":",1)[1])]
     elif l.startswith("App Sizes:"):
-        appsize=[x for x in l.split(":",1)[1].strip().strip("[]").split(",") if x]
-if names and appsize and len(names)==len(appsize):
-    for n,s in zip(names,appsize):
-        try: sizes[n.strip()]=int(s)
-        except ValueError: pass
+        appsize=[int(x) for x in re.findall(r"\d+", l.split(":",1)[1])]
+    elif l.startswith("Cache Sizes:"):
+        cachesize=[int(x) for x in re.findall(r"\d+", l.split(":",1)[1])]
+for i,n in enumerate(names):
+    a  = appsize[i]   if i < len(appsize)   else 0
+    dd = datasize[i]  if i < len(datasize)  else 0
+    c  = cachesize[i] if i < len(cachesize) else 0
+    sizes[n]=a+dd+c
 
-# --- last-used from dumpsys usagestats (heuristic, tolerate format drift) ---
+# --- last-used from dumpsys usagestats (Android 12+ = an event log:
+#     time="..." type=ACTIVITY_RESUMED package=...) ---
 last={}
-cur=None
 for l in lines("usagestats.txt"):
-    m=re.search(r'package=(?:"?)([A-Za-z0-9_.]+)',l)
-    if m: cur=m.group(1)
-    m=re.search(r'lastTimeUsed[=:"\s]+(\d+)',l)
-    if m and cur:
-        v=int(m.group(1))
-        if cur not in last or v>last[cur]: last[cur]=v
-import time
+    m=re.search(r'time="([^"]+)".*?type=(\w+).*?package=([A-Za-z0-9_.]+)', l)
+    if not m: continue
+    ts,tp,pkg=m.group(1),m.group(2),m.group(3)
+    if tp not in ("ACTIVITY_RESUMED","MOVE_TO_FOREGROUND"): continue
+    try:
+        e=int(time.mktime(time.strptime(ts,"%Y-%m-%d %H:%M:%S")))
+    except Exception:
+        continue
+    if e>last.get(pkg,0): last[pkg]=e
 now=int(time.time())
 def age_days(p):
     t=last.get(p)
