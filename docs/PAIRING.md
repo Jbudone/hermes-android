@@ -27,6 +27,10 @@ This makes the phone self-sufficient: Hermes runs in Termux and drives itself.
    **The phone must be joined to a Wi-Fi network to pair** (internet is not
    required — a hotspot or an offline router works). On mobile data only,
    `adb pair` fails at the protocol level.
+   **VPNs break this.** ZeroTier / Tailscale / WireGuard make Android advertise
+   and bind adbd + the pairing server to the VPN interface (e.g. `172.27.x.x`),
+   and `adb pair` then fails at the handshake even though the port looks open.
+   Turn the VPN off while pairing/connecting.
 4. `bash bootstrap/adb-wireless-setup.sh` — paste the **two full addresses** it
    asks for, exactly as the phone shows them:
    - the pairing dialog's `IP:port` + the 6-digit code

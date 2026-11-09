@@ -74,6 +74,9 @@ echo "  • the IP (same on both screens), e.g. 172.27.110.73"
 echo "  • 'Pair device with pairing code'  → its own PORT + a 6-digit code"
 echo "  • the main screen 'IP address & Port' → the CONNECT port"
 echo
+echo "If the IP shown is a VPN address (10.x, 172.27.x, 100.x — ZeroTier/Tailscale/"
+echo "WireGuard), turn the VPN OFF first: VPNs break wireless-debugging pairing."
+echo
 
 # Android requires a Wi-Fi ASSOCIATION for wireless-debugging pairing (internet
 # not needed). On mobile-data-only, `adb pair` dies at the protocol level even
