@@ -74,4 +74,4 @@ test/                       offline suite + fixtures
   install-existing`).
 - Generated Tasker XML uses only action layouts verified against real exports.
 
-See `docs/` for the full picture. Root would extend this — `docs/ROOT.md`.
+See `docs/HANDOFF.md` first in a new session; `docs/` has the full picture.

@@ -89,6 +89,26 @@ hermes-android tasker-gen ...         generate importable .tsk.xml
   so it works identically on the PC and on the phone.
 - The official Hermes Termux APT package: the `stable` channel 404s while
   `canary` is live; `install.sh` now refuses on Termux. Use the canary channel.
+- **Termux from Google Play cannot use the add-ons.** Termux:API/Tasker are
+  F-Droid-signed; `RUN_COMMAND` is signature-gated, so a Play build installs the
+  plugins but they can never talk to it. Use F-Droid Termux (same key as the
+  plugins). Check with `dumpsys package com.termux | grep -oE 'signatures:\[[0-9a-f]+\]'`.
+- Fresh F-Droid Termux has no `/etc/apt/sources.list.d`; `mkdir -p` it before
+  writing a repo file, or the write fails silently and the package is "not found".
+- Upstream no longer ships `constraints-termux.txt`; the from-source fallback
+  must install `.[termux]` without `-c`. Also repair any half-finished clone.
+- `pkg -y update` is invalid — flags go after the subcommand. Use
+  `apt-get -y -o Dpkg::Options::=--force-confnew update`.
+- **You cannot run commands inside Termux from adb.** RUN_COMMAND and the
+  Termux:Tasker receiver both require the signature permission, and `run-as`
+  fails (not debuggable). Drive the UI instead: `adb shell input text 'cmd%sarg'`
+  (`%s` = space) then `input keyevent 66`. Needs the phone unlocked — never
+  bypass or ask for a PIN. `svc power stayon usb` stops it re-locking.
+- Periodic on-device work does not need Tasker: `termux-job-scheduler --script
+  … --period-ms … --persisted true`. Android's floor is ~15 min; use Tasker only
+  for instant event reactions.
+- adbd stops advertising on mDNS once a client is connected, so `adb mdns
+  services` can be empty while the endpoint is alive — check `adb devices` first.
 - Tasker XML untested actions: don't invent `<Action>` codes. Extend the
   `ACTION` table in `tasker/gen_tsk.py` only with a verified layout.
 - `pm uninstall --user 0` is reversible via `cmd package install-existing`.
