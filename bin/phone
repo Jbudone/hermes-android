@@ -9,9 +9,11 @@
 #   phone adb <args...>    raw adb against the resolved device
 #
 # Target resolution, in order:
-#   1. USB                (most stable; a serial with no ':' in it)
-#   2. wireless via mDNS  (adb mdns services → _adb-tls-connect._tcp → connect)
-#   3. saved ports.env    ($TMPDIR/ao-run/ports.env from adb-wireless-setup.sh)
+#   1. AO_ADB_SERIAL     (explicit override)
+#   2. USB               (most stable; a serial with no ':' in it)
+#   3. already-connected wireless endpoint (e.g. after a manual `adb connect`)
+#   4. wireless via mDNS (adb mdns services → _adb-tls-connect._tcp → connect)
+#   5. saved ports.env   ($TMPDIR/ao-run/ports.env from adb-wireless-setup.sh)
 #
 # Set PHONE_PREFER=wifi to skip USB and use the wireless path.
 set -uo pipefail
@@ -31,10 +33,18 @@ STATE="${TMPDIR:-/tmp}/ao-run"; ENVF="$STATE/ports.env"
 
 resolve() {
   local usb addr host port
+  # 0. respect an explicit target
+  if [ -n "${AO_ADB_SERIAL:-}" ]; then printf '%s' "$AO_ADB_SERIAL"; return 0; fi
   if [ "${PHONE_PREFER:-usb}" != "wifi" ]; then
     usb="$("$AO_ADB" devices 2>/dev/null | awk 'NR>1 && $2=="device" && $1 !~ /:/{print $1; exit}')"
     [ -n "$usb" ] && { printf '%s' "$usb"; return 0; }
   fi
+  # 2. an already-connected wireless endpoint (e.g. after a manual `adb connect`)
+  host="$("$AO_ADB" devices 2>/dev/null | awk 'NR>1 && $2=="device" && $1 ~ /:/{print $1; exit}')"
+  if [ -n "$host" ] && "$AO_ADB" -s "$host" shell true >/dev/null 2>&1; then
+    printf '%s' "$host"; return 0
+  fi
+  # 3. discover via mDNS
   addr="$("$AO_ADB" mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/{print $NF; exit}')"
   if [ -n "$addr" ]; then
     "$AO_ADB" connect "$addr" >/dev/null 2>&1 || true
