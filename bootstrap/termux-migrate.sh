@@ -7,7 +7,7 @@
 set -u
 export PATH="/data/data/com.termux/files/usr/bin:$PATH"
 export DEBIAN_FRONTEND=noninteractive
-APT="pkg -y -o Dpkg::Options::=--force-confnew"
+APT_OPTS="-y -o Dpkg::Options::=--force-confnew"
 
 log(){ printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 
@@ -19,10 +19,13 @@ if [ ! -d /sdcard/Download ]; then
 fi
 
 log "apt update"
-$APT update </dev/null || echo "  (update returned non-zero; continuing)"
+# shellcheck disable=SC2086
+apt-get $APT_OPTS update </dev/null || pkg update -y </dev/null || echo "  (update returned non-zero; continuing)"
 
 log "installing packages (git curl python termux-api android-tools openssl)"
-$APT install git curl python termux-api android-tools openssl </dev/null \
+# shellcheck disable=SC2086
+apt-get $APT_OPTS install git curl python termux-api android-tools openssl </dev/null \
+  || pkg install -y git curl python termux-api android-tools openssl </dev/null \
   || echo "  (install returned non-zero; continuing — read the output above)"
 
 log "fetching the toolkit"
