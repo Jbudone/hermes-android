@@ -56,6 +56,36 @@ port is open). Reset it:
 
 Keep the phone unlocked during pairing.
 
+### D. Reuse an already-authorised key (bypasses pairing entirely)
+
+If `adb pair` fails no matter what — the ADB **35.x** client in Termux
+(`android-tools 35.0.2`) does this on some devices — do not fight it. adb
+authorisation is **key-based**, so any client holding a key the phone already
+trusts can connect without pairing:
+
+1. Over USB, authorise this PC (`adb devices` → Allow).
+2. Copy the key into Termux's store:
+   ```
+   adb push ~/.android/adbkey     /sdcard/Download/.hkey/adbkey
+   adb push ~/.android/adbkey.pub /sdcard/Download/.hkey/adbkey.pub
+   ```
+   then in Termux:
+   ```
+   mkdir -p ~/.android
+   cp /sdcard/Download/.hkey/adbkey ~/.android/adbkey
+   cp /sdcard/Download/.hkey/adbkey.pub ~/.android/adbkey.pub
+   chmod 600 ~/.android/adbkey
+   rm -rf /sdcard/Download/.hkey      # do not leave a private key on /sdcard
+   ```
+3. Ensure wireless debugging is on (from the PC, no tapping needed):
+   `adb shell settings put global adb_wifi_enabled 1`
+4. Connect — the port rotates, so let mDNS find it: `phone connect`
+
+Termux needs "All files access" to read `/sdcard`; grant it with
+`adb shell appops set com.termux MANAGE_EXTERNAL_STORAGE allow`.
+
+After this, the phone drives itself over `127.0.0.1:<port>` with no PC.
+
 ## Keeping it alive (Android fights background work)
 
 Android may suspend or kill Termux. Mitigations, strongest first:

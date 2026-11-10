@@ -75,9 +75,20 @@ hermes-android tasker-gen ...         generate importable .tsk.xml
 
 ## Pitfalls
 
-- The official Hermes Termux APT package is currently broken upstream (repo
-  404s). Install via the from-source one-liner, which detects Termux and
-  prebuilds the psutil shim — `bootstrap/termux-bootstrap.sh` does this.
+- **`adb pair` is broken in Termux's `android-tools` 35.x** (`protocol fault
+  (couldn't read status message): Success` on every address/port, even after a
+  reboot, over LAN with a fresh code). Don't fight it: adb auth is key-based, so
+  authorise the PC's key over USB, copy `~/.android/adbkey` into Termux's
+  `~/.android/`, then `adb connect` — no pairing at all. See `docs/PAIRING.md` §D.
+- **Wireless-debugging port rotates on every toggle.** Never hardcode it; use
+  `phone connect` (mDNS) or `adb connect 127.0.0.1:<port>` from the screen.
+  `adb shell settings put global adb_wifi_enabled 1` turns it on without tapping.
+- **Termux needs "All files access" to read `/sdcard`**:
+  `adb shell appops set com.termux MANAGE_EXTERNAL_STORAGE allow`.
+- `phone` resolves AO_ADB_SERIAL → USB → already-connected → mDNS → saved port,
+  so it works identically on the PC and on the phone.
+- The official Hermes Termux APT package: the `stable` channel 404s while
+  `canary` is live; `install.sh` now refuses on Termux. Use the canary channel.
 - Tasker XML untested actions: don't invent `<Action>` codes. Extend the
   `ACTION` table in `tasker/gen_tsk.py` only with a verified layout.
 - `pm uninstall --user 0` is reversible via `cmd package install-existing`.
