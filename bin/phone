@@ -5,6 +5,7 @@
 #   phone <cmd> [args...]  run `hermes-android <cmd> ...`  (perf, bloat, insights…)
 #   phone shell "<cmd>"    run one shell command on the phone
 #   phone connect          resolve/connect and print the adb target
+#   phone wifi-on          enable wireless debugging + connect (needs USB)
 #   phone env              print `export AO_ADB_SERIAL=…` for eval
 #   phone adb <args...>    raw adb against the resolved device
 #
@@ -75,6 +76,22 @@ export AO_ADB_SERIAL="$TGT"
 cmd="${1:-status}"; shift || true
 case "$cmd" in
   connect) printf '%s\n' "$TGT" ;;
+  wifi-on)
+    # Turn wireless debugging on and hand back the endpoint (needs a USB link).
+    "$AO_ADB" -s "$TGT" shell 'settings put global adb_wifi_enabled 1' >/dev/null 2>&1 || true
+    for _ in 1 2 3 4 5; do
+      sleep 2
+      addr="$("$AO_ADB" mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/{print $NF; exit}')"
+      [ -n "$addr" ] && break
+    done
+    if [ -n "${addr:-}" ]; then
+      "$AO_ADB" connect "$addr" >/dev/null 2>&1 || true
+      printf '%s\n' "$addr"
+    else
+      echo "no mDNS advert yet — give it a few seconds and run 'phone connect'" >&2
+      exit 1
+    fi
+    ;;
   env)     printf 'export AO_ADB_SERIAL=%s\n' "$TGT" ;;
   shell)   "$AO_ADB" -s "$TGT" shell "$*" ;;
   adb)     "$AO_ADB" -s "$TGT" "$@" ;;
