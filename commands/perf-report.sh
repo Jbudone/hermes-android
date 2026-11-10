@@ -49,6 +49,7 @@ collect() {
   ao_sh_quiet 'dumpsys activity processes' >"$DIR/processes.txt"  2>/dev/null
   ao_sh_quiet 'settings get global window_animation_scale' >"$DIR/anim.txt" 2>/dev/null
   ao_sh_quiet 'getprop | grep -E "dalvik|hwui|debug.hwui"' >"$DIR/props.txt" 2>/dev/null
+  ao_sh_quiet 'dumpsys gfxinfo' >"$DIR/gfxinfo.txt" 2>/dev/null
 }
 [ "$ANALYZE_ONLY" = 1 ] || collect
 
@@ -114,9 +115,13 @@ findings() {
   # --- Crashes / ANRs in the last 400 log lines ---
   local crashes anrs
   crashes="$(grep -c -iE 'FATAL EXCEPTION|beginning of crash' "$DIR/crash.txt" "$DIR/logcat.txt" 2>/dev/null | awk -F: '{s+=$2}END{print s+0}')"
-  anrs="$(grep -c -iE 'ANR in ' "$DIR/logcat.txt" 2>/dev/null || echo 0)"
+  anrs="$(awk '/ANR in /{n++} END{print n+0}' "$DIR/logcat.txt" 2>/dev/null)"
   [ "$crashes" -gt 0 ] && echo "MED|CRASH|$crashes crash signature(s) in recent logs"
   [ "$anrs" -gt 0 ] && echo "HIGH|ANR|$anrs ANR(s) in recent logs"
+  # --- Frame times: per-app jank from dumpsys gfxinfo (cumulative since start) ---
+  if [ -s "$DIR/gfxinfo.txt" ]; then
+    python3 "$ROOT/lib/gfxinfo.py" --file "$DIR/gfxinfo.txt" --findings 2>/dev/null
+  fi
   # --- Animation scale (perceived jank) ---
   if [ -s "$DIR/anim.txt" ]; then
     a="$(tr -d '\r' < "$DIR/anim.txt")"

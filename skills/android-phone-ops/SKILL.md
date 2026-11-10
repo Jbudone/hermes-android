@@ -34,9 +34,11 @@ directly inside Termux and expect it to work.
 ```
 hermes-android doctor                 environment + device self-check (run first)
 hermes-android perf [--json]          performance report + findings (HIGH/MED/LOW)
+hermes-android jank [--json]          per-app frame-time / jank % from gfxinfo
 hermes-android perf-fix [--dry-run]   safe, reversible remediations
 hermes-android bloat [--json]         bloat / unused-app audit
 hermes-android bloat-strip --dry-run  preview freeze/remove (reversible + ledger)
+hermes-android bloat-strip --plan F   apply a saved audit: audit -> plan -> done
 hermes-android insights [--json]      battery, wakelocks, storage, network
 hermes-android tasker-run "Task"      run a named Tasker task
 hermes-android tasker-signal EVT data broadcast a Hermes→Tasker event
@@ -49,11 +51,17 @@ hermes-android tasker-gen ...         generate importable .tsk.xml
   `perf-fix --dry-run` to see remediations, then `perf-fix --yes <actions>`.
   Prefer `trim-caches kill-bg anim-fast` first; `compile-speed` is heavy.
   Anything from `perf` tagged HIGH is worth acting on; report the evidence.
+- **"Why does it feel laggy?"** → `jank` (frame-time percentiles per app,
+  jank %). Counters are cumulative since each process started, so reset first
+  for a windowed number: `jank --reset <pkg>`, use the app, `jank` again.
 - **"Strip bloat"** → `bloat` to list candidates, `bloat-strip --dry-run` to
   preview, then `--yes (--freeze|--remove) <pkgs>`. FREEZE (`pm disable-user`)
   is preferred over REMOVE for anything you might want back. Everything is
   journalled; `bloat-strip --restore <ledger>` undoes it. The blocklist
   (systemui, settings, phone, gms, termux, Tasker…) is refused automatically.
+  For a one-flow pass use `bloat --json > audit.json` then
+  `bloat-strip --plan audit.json` (preview) / `--yes --freeze` (apply);
+  `--include-unused` and `--min-mb` shape the selection.
 - **"Add new features"** → this is just Hermes writing for the phone: Termux
   scripts in `~/.termux/tasker/`, toolkit extensions (add a `commands/*.sh` +
   a dispatcher case), or a Tasker task via `tasker-gen`.
@@ -70,6 +78,9 @@ hermes-android tasker-gen ...         generate importable .tsk.xml
   suddenly fail, re-run `bootstrap/adb-wireless-setup.sh --reconnect`.
 - After any `bloat-strip` or `perf-fix` apply, re-run `perf`/`bloat` and
   read back the state before claiming success.
+- `dumpsys gfxinfo` (no package) returns every rendering process in one call
+  (~0.6 s, ~700 KB). Blocks with no `Total frames rendered` are windowless
+  processes — skip them, they are not a jank signal.
 - Generated `.tsk.xml` uses only verified action layouts (877 Send Intent,
   104 Browse URL, 20 Launch App, 30 Wait, 123 Run Shell). Import-test once.
 

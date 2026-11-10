@@ -11,14 +11,14 @@ Shipped:
 - [x] Termux:API / Termux:Tasker installed, signature-matched (F-Droid Termux)
 - [x] Scheduled daily digest via `termux-job-scheduler` (job 1001, persisted)
 - [x] First real cleanup: ~19.5 GB freed, storage 99% → ~80%
+- [x] gfxinfo frame-time analysis: `jank` command + `lib/gfxinfo.py`, wired into `perf`
+- [x] `bloat-strip --plan <audit.json>`: audit → reviewable plan → apply in one flow
 
 Next:
 - [ ] Tasker profiles for instant reactions (battery low, charger connected) —
       UI taps only; see `docs/TASKER-RECIPES.md`
 - [ ] Optional: messaging gateway on the phone so it can be driven from Telegram
 - [ ] Optional: clear telephony/messages data (~6 GB) if the user agrees
-- [ ] gfxinfo frame-time analysis (per-app jank %, not just crash/ANR counts)
-- [ ] `bloat-strip --plan` from a saved JSON (audit → review → apply in one flow)
 
 Known limits:
 - Termux background survival depends on battery exemptions + wake-lock; not

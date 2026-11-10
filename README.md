@@ -4,12 +4,11 @@ Give Hermes Agent hands on your Android phone: **detect & fix performance
 issues, strip bloat, produce insights, and build Tasker automations** — non-root,
 from a PC or from the phone itself.
 
-> Status: the toolkit is built and its offline test suite passes
-> (`bash test/run-tests.sh` → 24/24): shell syntax, the Tasker XML generator
-> (validated against real Tasker exports), and the telemetry/inventory parsers
-> against fixtures. It has **not** yet been run against a physical device from
-> here — the on-device `collect` paths are standard `adb`/`pm`/`dumpsys`
-> commands but should be confirmed with `hermes-android doctor` on the phone.
+> Status: built, exercised against a physical Galaxy S22 Ultra (SM-S908U1,
+> Android 16), and the offline suite passes (`bash test/run-tests.sh` → 46/46):
+> shell syntax, the Tasker XML generator (validated against real Tasker
+> exports), and the telemetry / inventory / frame-time parsers against
+> fixtures captured from the device.
 
 ## Install
 
@@ -38,8 +37,10 @@ after `bootstrap/adb-wireless-setup.sh --host <phone-ip>`.
 ```
 hermes-android perf            # performance findings (HIGH/MED/LOW)
 hermes-android perf-fix --dry-run
+hermes-android jank            # per-app frame-time / jank % (gfxinfo)
 hermes-android bloat           # bloat + unused apps
 hermes-android bloat-strip --dry-run
+hermes-android bloat-strip --plan <audit.json>          # audit → review → apply
 hermes-android insights        # battery / wakelocks / storage
 hermes-android tasker-run "Task Name"
 hermes-android tasker-signal EVT data
@@ -55,7 +56,8 @@ evidence, and applies safe fixes.
 ```
 bin/hermes-android          dispatcher (single entry point)
 lib/android-ops.sh          adb privilege layer + shared helpers
-commands/                   doctor, perf(-report/-fix), bloat(-audit/-strip), insights, tasker-run/-signal
+lib/gfxinfo.py              dumpsys gfxinfo → per-app frame stats (jank)
+commands/                   doctor, perf(-report/-fix), jank-report, bloat(-audit/-strip), insights, tasker-run/-signal
 tasker/gen_tsk.py           .tsk.xml generator (verified action layouts only)
 tasker/termux-scripts/      scripts for the Tasker → Termux direction
 bootstrap/                  on-device installer + adb pairing helper

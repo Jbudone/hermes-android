@@ -8,7 +8,7 @@ The phone is fully drivable and the on-device agent works. From the PC:
 
     cd ~/jdrive/jstuff/work/personal/hermes-android
     phone                 # status (auto-detects USB → wireless → mDNS → saved)
-    phone perf | bloat | insights
+    phone perf | jank | bloat | insights
     phone shell "…"
     phone wifi-on         # after a reboot: plug USB, run this, unplug
 
@@ -68,6 +68,22 @@ Practical pattern: push a small `.sh` to `/sdcard/Download/`, then type
 `bash /sdcard/Download/<name>.sh` and Enter. Avoids quoting problems and keeps
 typed text short.
 
+## Frame times / jank (new)
+
+`phone jank` parses `dumpsys gfxinfo` (one dump, all processes, ~0.6 s) into
+per-app frame stats: frames, janky %, p50/p90/p95/p99, slow-UI / slow-draw /
+missed-vsync counters, aggregated per package. `perf` collects the same dump
+and emits `JANK` findings, so HIGH/MED jank now shows up next to CPU/thermal.
+
+- Counters are **cumulative since each process started** (usually boot), so an
+  app that dragged at boot still looks bad hours later. For a windowed
+  measurement: `phone jank --reset <pkg>`, use the app, then `phone jank`.
+- A 200-frame floor (`--min-frames`) keeps one-off splash screens out of the
+  ranking; `--json` returns every app plus the notable subset.
+- Baseline on this phone (Nov 2026, warm): systemui ~29% janky p95 61 ms
+  (HIGH), launcher 13% (MED), Gboard/Termux ~10% (MED). Systemui is the
+  standing offender, not a one-off.
+
 ## Storage work already done
 
 Freed ~19.5 GB (99% → ~80% used): uninstalled Hearthstone (10.8 GB) and Diablo
@@ -76,6 +92,18 @@ Messenger (1.8 GB), froze Bixby language packs, trimmed caches.
 
 Still large if more is needed: `com.android.providers.telephony` ~3.2 GB,
 Messages ~3.1 GB, YouTube ~2.0 GB (clearing these is destructive — ask first).
+
+Removal flow, from an audit to an applied plan:
+
+    phone bloat --json > /tmp/audit.json          # inventory
+    phone bloat-strip --plan /tmp/audit.json       # preview a plan (dry run)
+    phone bloat-strip --plan /tmp/audit.json --yes --freeze   # apply, journalled
+    phone bloat-strip --restore <ledger.jsonl>     # undo
+
+`--plan` reads `bloat-audit --json` and writes a reviewable
+`bloat-plan-<ts>.json` next to the ledger; `--include-unused` adds 90-day-unused
+third-party apps and `--min-mb` filters small ones. Already-disabled packages
+are skipped, and the hard blocklist still wins over anything in the plan file.
 
 ## What remains
 

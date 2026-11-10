@@ -17,7 +17,7 @@ for f in "$ROOT"/lib/*.sh "$ROOT"/bin/hermes-android "$ROOT"/commands/*.sh; do
 done
 
 echo "== 2. python compiles =="
-if python3 -m py_compile "$ROOT/tasker/gen_tsk.py" "$HERE/validate_xml.py" 2>/dev/null; then ok "py_compile"; else bad "py_compile"; fi
+if python3 -m py_compile "$ROOT/tasker/gen_tsk.py" "$HERE/validate_xml.py" "$ROOT/lib/gfxinfo.py" 2>/dev/null; then ok "py_compile"; else bad "py_compile"; fi
 
 echo "== 3. Tasker XML generation =="
 TMP="$(mktemp -d)"
@@ -73,6 +73,38 @@ PLOG3="$TMP/pair-bare.log"
 : > "$PLOG3"
 out3="$(printf '38959\n36895\n123456\n36895\n' | AO_ADB="$FAKE" FAKE_ADB_LOG="$PLOG3" bash "$ROOT/bootstrap/adb-wireless-setup.sh" 2>&1)"
 expect_contains "$out3" "looks like a port, not an IP" "bare port in the IP field is rejected"
+
+echo "== 8. gfxinfo jank parser (offline fixture) =="
+jout="$(python3 "$ROOT/lib/gfxinfo.py" --file "$FIX/gfxinfo/gfxinfo.txt" 2>&1)"
+expect_contains "$jout" "com.android.systemui" "ranks systemui"
+expect_contains "$jout" "29.0%" "reads jank percentage"
+expect_contains "$jout" "61ms" "reads p95 frame time"
+expect_contains "$jout" "HIGH" "flags a high-jank app"
+jjson="$(python3 "$ROOT/lib/gfxinfo.py" --file "$FIX/gfxinfo/gfxinfo.txt" --json)"
+expect_contains "$jjson" '"slow_ui": 2436' "parses slow-UI counter"
+jfind="$(python3 "$ROOT/lib/gfxinfo.py" --file "$FIX/gfxinfo/gfxinfo.txt" --findings)"
+expect_contains "$jfind" "HIGH|JANK|com.android.systemui" "emits perf-report findings"
+case "$jjson" in *"SandboxedProcessService0"*) bad "ignores processes that never drew" ;; *) ok "ignores processes that never drew" ;; esac
+
+echo "== 9. bloat-strip --plan (saved audit JSON) =="
+AUD="$TMP/audit.json"
+"$ROOT/commands/bloat-audit.sh" --analyze-only --json --dir "$BA" > "$AUD" 2>/dev/null
+export AO_ADB="$FAKE" AO_ADB_SERIAL=fake TMPDIR="$TMP/run"
+mkdir -p "$TMP/run"
+pout="$("$ROOT/commands/bloat-strip.sh" --plan "$AUD" --freeze 2>&1)"
+expect_contains "$pout" "would freeze: com.facebook.katana" "plan selects audit bloat candidate"
+expect_contains "$pout" "would freeze: com.samsung.android.bixby.agent" "plan selects bixby"
+planfile="$(printf '%s\n' "$pout" | sed -n 's/^plan: //p' | head -1)"
+[ -s "$planfile" ] && ok "writes a reviewable plan file" || bad "plan file missing ($planfile)"
+expect_contains "$(cat "$planfile" 2>/dev/null)" '"schema": "hermes-android/bloat-plan"' "plan file has a schema"
+# A protected package in the plan must still be refused.
+PROT="$TMP/plan-protected.json"
+printf '{"bloat_candidates":[{"package":"com.android.systemui","mb":1,"tags":["BLOAT:x"]}],"unused_candidates":[]}\n' > "$PROT"
+pout2="$("$ROOT/commands/bloat-strip.sh" --plan "$PROT" --freeze 2>&1)"
+expect_contains "$pout2" "SKIP (protected): com.android.systemui" "blocklist wins over plan input"
+both="$("$ROOT/commands/bloat-strip.sh" --plan "$AUD" --freeze com.example.extra 2>&1)"
+expect_contains "$both" "already carries the package list" "plan + explicit packages is refused"
+unset AO_ADB AO_ADB_SERIAL TMPDIR
 
 rm -rf "$TMP"
 echo
