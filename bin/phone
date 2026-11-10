@@ -79,16 +79,22 @@ case "$cmd" in
   wifi-on)
     # Turn wireless debugging on and hand back the endpoint (needs a USB link).
     "$AO_ADB" -s "$TGT" shell 'settings put global adb_wifi_enabled 1' >/dev/null 2>&1 || true
-    for _ in 1 2 3 4 5; do
-      sleep 2
-      addr="$("$AO_ADB" mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/{print $NF; exit}')"
-      [ -n "$addr" ] && break
-    done
+    # Already connected over wireless? nothing to do.
+    addr="$("$AO_ADB" devices 2>/dev/null | awk 'NR>1 && $2=="device" && $1 ~ /:/{print $1; exit}')"
+    if [ -z "$addr" ]; then
+      # otherwise wait for the mDNS advert (adbd only advertises until someone connects)
+      for _ in 1 2 3 4 5; do
+        sleep 2
+        addr="$("$AO_ADB" mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/{print $NF; exit}')"
+        [ -n "$addr" ] && break
+      done
+    fi
     if [ -n "${addr:-}" ]; then
       "$AO_ADB" connect "$addr" >/dev/null 2>&1 || true
       printf '%s\n' "$addr"
     else
-      echo "no mDNS advert yet — give it a few seconds and run 'phone connect'" >&2
+      echo "wireless debugging is on, but nothing is advertising yet." >&2
+      echo "tap Wireless debugging off/on in Settings, then run 'phone connect'" >&2
       exit 1
     fi
     ;;
