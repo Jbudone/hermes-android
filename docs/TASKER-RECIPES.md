@@ -66,6 +66,29 @@ For the event, create **Profile → Event → System → Intent Received** with 
 
 ---
 
+## 6. Scheduled digest without Tasker (no UI at all)
+
+Tasker is not required for the periodic case. `termux-job-scheduler` (from
+Termux:API) runs a script on a schedule, survives reboots (`--persisted true`)
+and needs no plugin config:
+
+```
+termux-job-scheduler \
+  --script "$HOME/.termux/tasker/digest.sh" \
+  --period-ms 86400000 --persisted true --network any --job-id 1001
+termux-job-scheduler --pending     # confirm
+```
+
+`digest.sh` runs `hermes-android perf`, keeps the HIGH/MED lines and posts them
+as a `hermes-digest` notification. Cancel with
+`termux-job-scheduler --cancel --job-id 1001`.
+
+Android's floor for periodic jobs is ~15 min, so this is for digests/guards, not
+instant reactions. For instant event reactions (charger plugged, battery low)
+Tasker is the right tool — that is what recipes 1 and 2 are for.
+
+---
+
 ## Useful one-liners inside a task
 
     hermes-android perf                    # full performance report
