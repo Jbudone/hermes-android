@@ -55,7 +55,7 @@ ok "packages requested"
 # --- 2. Hermes ---
 install_hermes_apt() {
   say "Installing Hermes from the $SUITE APT channel (prebuilt)"
-  mkdir -p "$PREFIX/etc/apt/keyrings"
+  mkdir -p "$PREFIX/etc/apt/keyrings" "$PREFIX/etc/apt/sources.list.d"
   curl -fsSL "$CANARY/key.asc" -o "$PREFIX/etc/apt/keyrings/hermes-agent.asc" || return 1
   local fp fp_norm key_norm
   fp="$(gpg --show-keys --with-fingerprint "$PREFIX/etc/apt/keyrings/hermes-agent.asc" 2>/dev/null | sed -n '2p')"
@@ -75,14 +75,26 @@ install_hermes_source() {
   say "Falling back to a from-source build (compiles on-device; 10-20 min, phone gets warm)"
   pkg install -y git python clang rust make pkg-config libffi openssl ca-certificates binutils >/dev/null 2>&1 || true
   local d="$HOME/hermes-agent"
-  [ -d "$d/.git" ] || git clone --depth 1 https://github.com/NousResearch/hermes-agent "$d" || return 1
+  if [ ! -d "$d/.git" ]; then
+    rm -rf "$d"
+    git clone --depth 1 https://github.com/NousResearch/hermes-agent "$d" || return 1
+  else
+    # repair a half-finished earlier clone
+    git -C "$d" fetch --depth 1 origin main >/dev/null 2>&1 \
+      && git -C "$d" reset --hard FETCH_HEAD >/dev/null 2>&1 || true
+  fi
   ( cd "$d" || return 1
     python -m venv venv --system-site-packages
     # shellcheck disable=SC1091
     . venv/bin/activate || return 1
     python -m pip install --upgrade pip setuptools wheel || true
     if [ -f scripts/install_psutil_android.py ]; then python scripts/install_psutil_android.py || true; fi
-    python -m pip install -e '.[termux]' -c constraints-termux.txt || return 1
+    if [ -f constraints-termux.txt ]; then
+      python -m pip install -e '.[termux]' -c constraints-termux.txt || return 1
+    else
+      echo "  (upstream no longer ships constraints-termux.txt; installing .[termux] without it)"
+      python -m pip install -e '.[termux]' || return 1
+    fi
   ) || return 1
   ln -sf "$d/venv/bin/hermes" "$PREFIX/bin/hermes" 2>/dev/null || true
   have hermes
