@@ -163,3 +163,13 @@ hermes-android tasker-gen ...         generate importable .tsk.xml
 - **The plugin's Executable field is autocorrected** — typing
   `hermes-android-tasker.sh` yields `hermes Android tasker.sh`. Type a few
   chars (`perf`, `herm`) and tap the field's file-autocomplete suggestion instead.
+- **Tasker does not flush new tasks/profiles to disk immediately.** Killing
+  Tasker (`am force-stop`) right after creating a task/profile can lose them
+  (observed: a new task + its boot profile vanished after a force-stop). After
+  building anything in Tasker, verify it survives a Tasker restart before
+  relying on it.
+- **Tasker `Run Shell` can't write global settings here.**
+  `/system/bin/settings put global adb_wifi_enabled 1` returns **Error 255**
+  even with `WRITE_SECURE_SETTINGS` granted and after a Tasker restart — it is
+  permission/SELinux, not a PATH problem. Do privileged toggles over `adb shell`
+  instead, and treat the on-device re-enable of wireless debugging as unsolved.

@@ -61,13 +61,22 @@ Next — prioritized improvement plan (execute in this order):
        scripts (drive via a Tasker task whose plugin Executable is an absolute
        path to `bash` with `-c "…"`, since new files can't be written into
        Termux's home over adb).
-5. [ ] Security cleanup of shared storage: move the Google OAuth
-       `client_secret_*.json` out of `/sdcard/Download`, remove stray scripts,
-       and decide the ZeroTier-vs-wireless-debugging policy (ZeroTier rebinds
-       wireless debugging and breaks pairing).
-6. [ ] Remote-control path with no laptop: run the Hermes gateway on the phone
-       (drive from Telegram) + reboot-surviving key-based wireless adb with a
-       reconnect helper (`docs/PAIRING.md`).
+5. [x] Security cleanup of shared storage — DONE. Backed up and removed the two
+       Google OAuth `client_secret_*.json` files from `/sdcard/Download`
+       (copies in ~/phone-backups/2026-11-10/secrets/), plus the session's own
+       scripts (hm-*, ha-update.sh, termux-migrate.sh). ZeroTier
+       (`com.zerotier.one`) is installed but **not running** — left in place;
+       freeze it (`pm disable-user`) only if wireless debugging misbehaves.
+6. [~] Remote-control path with no laptop. Wireless adb DONE: enabled
+       (`settings put global adb_wifi_enabled 1`), phone now at
+       **192.168.1.58:34693**, key-based connect verified, and
+       `bootstrap/adb-wireless-setup.sh --reconnect` works (ports saved to
+       `$TMPDIR/ao-run/ports.env`). `WRITE_SECURE_SETTINGS` granted to Tasker.
+       Remaining: (a) the Hermes gateway on the phone for Telegram — needs the
+       bot token; (b) a working on-boot re-enable of wireless debugging
+       (Tasker Run Shell `/system/bin/settings put global adb_wifi_enabled 1`
+       returns **Error 255** — permission/SELinux, not PATH; the global setting
+       may already persist across reboots, unverified).
 
 Known limits:
 - Termux background survival depends on battery exemptions + wake-lock; not
