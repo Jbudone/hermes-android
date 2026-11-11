@@ -53,9 +53,14 @@ Next — prioritized improvement plan (execute in this order):
        regressions (the daily termux-job-scheduler digest partly covers this).
        LESSON: clone a working task (long-press → Clone) instead of rebuilding —
        it keeps the plugin action + timeout, so only Executable/Args/title change.
-4. [ ] Harden on-device agent background survival: `termux-wake-lock`,
-       battery-optimisation exemption for Termux + Tasker, keep the digest on
-       `termux-job-scheduler`, add a watchdog that logs agent death.
+4. [~] Harden on-device agent background survival. CONFIRMED already in place:
+       Termux + Tasker are both battery-optimisation whitelisted
+       (`dumpsys deviceidle whitelist` → `user,com.termux`, `user,net.dinglisch.android.taskerm`)
+       and the digest job is live (`termux-job-scheduler` job #u0a449/1001).
+       Remaining: `termux-wake-lock` + a watchdog — both need Termux-side
+       scripts (drive via a Tasker task whose plugin Executable is an absolute
+       path to `bash` with `-c "…"`, since new files can't be written into
+       Termux's home over adb).
 5. [ ] Security cleanup of shared storage: move the Google OAuth
        `client_secret_*.json` out of `/sdcard/Download`, remove stray scripts,
        and decide the ZeroTier-vs-wireless-debugging policy (ZeroTier rebinds
