@@ -110,6 +110,23 @@ hermes-android tasker-gen ...         generate importable .tsk.xml
   must install `.[termux]` without `-c`. Also repair any half-finished clone.
 - `pkg -y update` is invalid — flags go after the subcommand. Use
   `apt-get -y -o Dpkg::Options::=--force-confnew update`.
+- **Tasker plugin errors "missing, disabled, not exported or no permission
+  receiver"** mean the plugin app is in Android's *stopped* state (never
+  launched — a stopped package's receivers get no broadcasts) and/or the caller
+  lacks `com.termux.permission.RUN_COMMAND`, which protects its service.
+  Fix both: launch the plugin once
+  (`am start -n com.termux.tasker/.activities.TermuxTaskerLauncherActivity`
+  then `pm grant net.dinglisch.android.taskerm com.termux.permission.RUN_COMMAND`
+  — it is protectionLevel=dangerous, so `pm grant` works). Verified: the plugin
+  then configures normally and the action reports success.
+- **`adb shell input text` cannot express `%` or a plain space.** `%s` becomes a
+  space, and a literal `%` is swallowed (`"%stdout"` arrives as `" tdout"`). For
+  Tasker variables, tap the field's variable-pick (tag) icon instead. Prefer
+  pushing a `.sh` to `/sdcard/Download/` and typing `bash /sdcard/Download/x.sh`.
+- **Tasker 6.7.x on Android 14+ dropped the Power *events*** (Battery Low, Power
+  Connected). Use states: *State → Power → Battery Level* (0–15) and *State →
+  Power → Power*. UI drives fine over adb: screenshot → tap with
+  full-resolution coordinates (double a half-size screenshot's).
 - **You cannot run commands inside Termux from adb.** RUN_COMMAND and the
   Termux:Tasker receiver both require the signature permission, and `run-as`
   fails (not debuggable). Drive the UI instead: `adb shell input text 'cmd%sarg'`

@@ -14,9 +14,14 @@ Shipped:
 - [x] gfxinfo frame-time analysis: `jank` command + `lib/gfxinfo.py`, wired into `perf`
 - [x] `bloat-strip --plan <audit.json>`: audit → reviewable plan → apply in one flow
 
+In progress:
+- [~] Tasker profiles for instant reactions — bridge unblocked (RUN_COMMAND
+      granted + plugin launched once, see `docs/HANDOFF.md`); task
+      `Battery Low Guard` built and running, profile `Battery Level 0, 15`
+      created; **still to do**: attach task → profile, enable it, then the
+      charger-state pair. Recipes corrected to State → Power contexts.
+
 Next:
-- [ ] Tasker profiles for instant reactions (battery low, charger connected) —
-      UI taps only; see `docs/TASKER-RECIPES.md`
 - [ ] Optional: messaging gateway on the phone so it can be driven from Telegram
 - [ ] Optional: clear telephony/messages data (~6 GB) if the user agrees
 

@@ -105,11 +105,46 @@ Removal flow, from an audit to an applied plan:
 third-party apps and `--min-mb` filters small ones. Already-disabled packages
 are skipped, and the hard blocklist still wins over anything in the plan file.
 
+## Tasker → Termux bridge: unblocked, profile half-built (in progress)
+
+The plugin error people hit here is **not** a manifest/export problem — the
+receivers are exported and declare the Locale actions. Two real causes, both
+now fixed on this device:
+
+    adb shell am start -n com.termux.tasker/.activities.TermuxTaskerLauncherActivity   # (a)
+    adb shell pm grant net.dinglisch.android.taskerm com.termux.permission.RUN_COMMAND # (b)
+
+(a) freshly installed plugins sit in Android's *stopped* state, and a stopped
+package's manifest receivers never receive broadcasts — launch the plugin app
+once. (b) `com.termux.permission.RUN_COMMAND` is protectionLevel=**dangerous**,
+so `pm grant` works and persists; without it the plugin refuses the caller.
+Verify: `dumpsys package net.dinglisch.android.taskerm | grep -A2 "runtime permissions" | grep termux` → `granted=true`.
+
+State of the work (resume here):
+
+- **Done**: task `Battery Low Guard` exists and is **working** — action 1 is the
+  Termux plugin action (`hermes-android-tasker.sh`, arguments
+  `perf-fix --yes trim-caches kill-bg`, Timeout set to 120 s by expanding the
+  slider into a text field), action 2 is Notify (title `Battery Low Guard`,
+  text `%stdout`). Ran it from Task Edit with the ▶ button → action turns
+  **green** = the bridge works end to end.
+- **Done**: profile `*Battery Level 0, 15` exists (State → Power → Battery
+  Level, From 0 To 15).
+- **Not done**: attaching that task to the profile and enabling the profile,
+  and the same pair for the charger state. Resume: Profiles tab → open the
+  profile → attach existing task `Battery Low Guard` → press back to enable
+  (the toggle is dimmed while the profile has no task / is unsaved) → then
+  repeat with State → Power → **Power** and a `perf-guard.sh --fix` task.
+- Recipe doc was **wrong** for this device and is now corrected: Tasker 6.7.8 on
+  Android 16 has no *Event → Power → Battery Low* and no *Power Connected*; only
+  Battery Changed / Battery Full / Battery Overheating. Use the **State →
+  Power** contexts instead.
+
 ## What remains
 
-1. **Tasker profiles** for instant reactions (battery low, charger connected) —
-   `docs/TASKER-RECIPES.md`. Needs UI taps; plugin actions cannot be generated
-   as XML (their action code is assigned per plugin instance).
+1. Finish the two Tasker guards (above): attach task to profile, enable, then
+   verify by actually crossing the threshold (or by running the task and
+   checking the Notify output).
 2. Optional further storage cleanup (above).
 3. Optional: messaging gateway on the phone (`hermes gateway run`) so the phone
    can be driven from Telegram with no laptop.
@@ -127,3 +162,8 @@ are skipped, and the hard blocklist still wins over anything in the plan file.
 | apt/dpkg hangs with no output | conffile prompt; `--force-confnew`, `stdin </dev/null` |
 | `hermes -c "prompt"` | `-c` = continue session; one-shot is `hermes chat -q "prompt"` |
 | `dumpsys`/`pm` denied in Termux | SELinux; go through `adb shell` (`ao_sh`) |
+| Tasker: `plugin error: missing, disabled, not exported or no permission receiver` | plugin app is in Android **stopped** state (launch it once) and/or Tasker lacks `com.termux.permission.RUN_COMMAND` (`pm grant …`) |
+| `adb shell input text "%stdout"` types `" tdout"` | `input text` rewrites `%s` to a space; for Tasker variables use the field's variable-pick (tag) icon, not the keyboard |
+| `adb shell input text "a b"` types `"ab"` | spaces need `%s` (see above); keep typed strings short, push a `.sh` to `/sdcard/Download/` instead |
+| Tasker has no *Battery Low* / *Power Connected* event | Tasker 6.7.8 / Android 16 removed them; use State → Power → Battery Level / Power |
+| Termux:Tasker config screen opened by hand says "The (unknown) App (null) has not been granted …" | expected when launched from adb (no calling app); it is not the plugin failure — check the two causes above instead |
