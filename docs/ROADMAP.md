@@ -31,10 +31,16 @@ Next — prioritized improvement plan (execute in this order):
        launcher 11→9.1%). **Real sustained drain found instead: AirDroid
        (`com.sand.airdroid` + `:push`) ≈9% CPU (~1 h CPU each since boot) and
        2.5 GB swap in use (MemAvailable ~2.9 GB of 7.2 GB).**
-       Follow-ups: decide AirDroid (restrict / freeze / remove — user's app,
-       also a remote-access privacy surface) and relieve memory pressure.
-2. [ ] Reclaim ~6 GB: telephony provider (~3.2 GB), Messages (~3.1 GB),
-       YouTube cache (~2 GB). Back up threads first; destructive, needs sign-off.
+       DONE: AirDroid frozen (`pm disable-user --user 0`, reversible) —
+       both PIDs gone, ~9% CPU reclaimed. Follow-up: relieve memory pressure.
+2. [~] Reclaim ~6 GB. Backups captured to ~/phone-backups/2026-11-10/
+       (sms.txt 16,627 rows with bodies; calls.txt 2,000; mms_meta.txt 25,899).
+       MMS media (2,438 parts — jpg/heic/png/gif/mp4/3gp/pdf) pulling in the
+       background via `content://mms/part` → mms_media/. Destructive clear of
+       telephony (3.3 GB) + Messages (2.8 GB) is **pending the media pull**.
+       NOTE: the `easyMover` (Smart Switch) 6.4 GB reported by
+       `dumpsys diskstats` is a **phantom** — `pm clear` *and*
+       `pm uninstall --user 0` both return Success and free nothing. Ignore it.
 3. [ ] Finish + extend Tasker guards: charger pair (`perf-guard.sh --fix`),
        plus a screen-off / periodic `perf-guard` to catch regressions.
 4. [ ] Harden on-device agent background survival: `termux-wake-lock`,
