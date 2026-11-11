@@ -24,10 +24,15 @@ In progress:
 
 Next — prioritized improvement plan (execute in this order):
 
-1. [ ] Fix systemui jank (the standing HIGH). Windowed measurement
-       (`phone jank --reset systemui` → use → `phone jank`), rule out Samsung
-       blur/transparency, launcher animations and overlays, apply
-       `perf-fix anim-fast`, re-measure. Target systemui < ~15% janky.
+1. [x] systemui jank — investigated and reframed. Windowed sample is ~10–11%
+       janky / p95 34 ms on a 120 Hz panel; the 29% "HIGH" was cumulative
+       since boot, not steady-state. Animations already at 0.5; set
+       `accessibility_reduce_transparency=1` (small win: systemui 11.5→10.7%,
+       launcher 11→9.1%). **Real sustained drain found instead: AirDroid
+       (`com.sand.airdroid` + `:push`) ≈9% CPU (~1 h CPU each since boot) and
+       2.5 GB swap in use (MemAvailable ~2.9 GB of 7.2 GB).**
+       Follow-ups: decide AirDroid (restrict / freeze / remove — user's app,
+       also a remote-access privacy surface) and relieve memory pressure.
 2. [ ] Reclaim ~6 GB: telephony provider (~3.2 GB), Messages (~3.1 GB),
        YouTube cache (~2 GB). Back up threads first; destructive, needs sign-off.
 3. [ ] Finish + extend Tasker guards: charger pair (`perf-guard.sh --fix`),
