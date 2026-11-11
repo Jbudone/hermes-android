@@ -10,6 +10,8 @@
 #   hermes-android insights [--json]      battery / wakelock / storage insights
 #   hermes-android tasker-run <Task> [p1 p2]   run a named Tasker task
 #   hermes-android tasker-signal <EVENT> [data] broadcast a Hermes->Tasker signal
+#   hermes-android keepalive              wake-lock + heartbeat + re-assert digest (on device)
+#   hermes-android self-update            git pull ~/hermes-android (on device)
 #
 # Works from a PC (adb over USB/wireless) and on-device (adb-to-self in Termux).
 
@@ -38,8 +40,10 @@ case "$cmd" in
   tasker-run)    exec "$ROOT/commands/tasker-run.sh" "$@" ;;
   tasker-signal) exec "$ROOT/commands/tasker-signal.sh" "$@" ;;
   tasker-gen)    exec "$ROOT/tasker/gen_tsk.py" "$@" ;;
+  keepalive)     exec "$ROOT/commands/keepalive.sh" "$@" ;;
+  self-update)   exec "$ROOT/commands/self-update.sh" "$@" ;;
   help|-h|--help|"")
-    sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 && !/^#/ { exit }' "${BASH_SOURCE[0]}"
     ;;
   *) ao_die "unknown command: $cmd (try: hermes-android help)" ;;
 esac
