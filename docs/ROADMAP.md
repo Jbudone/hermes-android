@@ -15,12 +15,11 @@ Shipped:
 - [x] `bloat-strip --plan <audit.json>`: audit → reviewable plan → apply in one flow
 
 In progress:
-- [~] Tasker guards for instant reactions. Guard 1 (`Battery Low Guard` +
-      profile `*Battery Level 0, 15`) **rebuilt and verified** this session
-      (plugin runs, both actions green, profile attached + enabled). Guard 2
-      (charger) is half-built — finish it, then extend.
+- [x] Tasker guards for instant reactions — **both rebuilt and verified** this
+      session: `Battery Low Guard` (+ profile `*Battery Level 0, 15`) and
+      `Charger Guard` (+ profile `*Power Any`), all enabled.
       Note: the previous session's guards were lost when Tasker updated
-      6.7.8 → 6.7.9; rebuild done from `docs/TASKER-RECIPES.md`.
+      6.7.8 → 6.7.9; rebuilt from `docs/TASKER-RECIPES.md`.
 
 Next — prioritized improvement plan (execute in this order):
 
@@ -45,8 +44,15 @@ Next — prioritized improvement plan (execute in this order):
        from them (incl. the easyMover 6.4 GB "phantom") can't be trusted.
        A stale provider read also briefly showed the messages as still present;
        verify clears by re-querying after the provider restarts.
-3. [ ] Finish + extend Tasker guards: charger pair (`perf-guard.sh --fix`),
-       plus a screen-off / periodic `perf-guard` to catch regressions.
+3. [~] Tasker guards — charger pair DONE. `Charger Guard` task (clone of the
+       working Battery Low Guard → executable `perf-guard.sh`, args `--fix`,
+       timeout carried over) built and verified green; profile `*Power Any`
+       (State → Power → Power, Source: Any) attached + enabled. Both guards now
+       enabled: `*Battery Level 0, 15` → Battery Low Guard; `*Power Any` →
+       Charger Guard. Remaining: a screen-off / periodic `perf-guard` to catch
+       regressions (the daily termux-job-scheduler digest partly covers this).
+       LESSON: clone a working task (long-press → Clone) instead of rebuilding —
+       it keeps the plugin action + timeout, so only Executable/Args/title change.
 4. [ ] Harden on-device agent background survival: `termux-wake-lock`,
        battery-optimisation exemption for Termux + Tasker, keep the digest on
        `termux-job-scheduler`, add a watchdog that logs agent death.
