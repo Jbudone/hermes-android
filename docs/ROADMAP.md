@@ -109,10 +109,15 @@ Next — round 2 (execute in this order):
        `--remove` (reversible via install-existing) for space. Deliberately NOT
        frozen, needs your call: Outlook (652 MB), Samsung Notes (368 MB),
        com.android.carrierconfig (system-critical). Games (~3.9 GB) are in use.
-6. [ ] Finish remote control: Telegram gateway (needs bot token) + confirm
-       wireless debugging survives a reboot. Wireless adb itself already works
-       standalone (verified: PC drives the phone at 192.168.1.58:34693 with USB
-       unplugged).
+6. [~] Finish remote control. Wireless adb works but **does NOT survive a
+       reboot** — VERIFIED by an actual reboot: `adb_wifi_enabled` resets to 0,
+       and both the LAN IP (192.168.1.58 → .129) and the port (34693 → 41373)
+       rotate. So after a reboot you need USB once:
+       `adb shell settings put global adb_wifi_enabled 1` (what `phone wifi-on`
+       does), then reconnect. Tasker can't do it (Run Shell → 255).
+       Current endpoint: **192.168.1.129:41373**.
+       Gateway: exact steps in `docs/PHONE-GATEWAY.md`; needs the user's bot
+       token (entered on the device, never through chat) — not yet set up.
 
 Known limits:
 - Termux background survival depends on battery exemptions + wake-lock; not
