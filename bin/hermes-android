@@ -7,6 +7,7 @@
 #   hermes-android bloat [--json]         bloat / unused-app audit
 #   hermes-android bloat-strip [--dry-run] remove or freeze selected bloat
 #   hermes-android jank [--json]          per-app frame-time / jank report
+#   hermes-android drain [--frames N]     windowed CPU-drain ranking (persistent offenders)
 #   hermes-android insights [--json]      battery / wakelock / storage insights
 #   hermes-android tasker-run <Task> [p1 p2]   run a named Tasker task
 #   hermes-android tasker-signal <EVENT> [data] broadcast a Hermes->Tasker signal
@@ -36,6 +37,7 @@ case "$cmd" in
   bloat|bloat-audit) exec "$ROOT/commands/bloat-audit.sh" "$@" ;;
   bloat-strip)   exec "$ROOT/commands/bloat-strip.sh" "$@" ;;
   jank|jank-report) exec "$ROOT/commands/jank-report.sh" "$@" ;;
+  drain)         exec "$ROOT/commands/drain.sh" "$@" ;;
   insights)      exec "$ROOT/commands/insights.sh" "$@" ;;
   tasker-run)    exec "$ROOT/commands/tasker-run.sh" "$@" ;;
   tasker-signal) exec "$ROOT/commands/tasker-signal.sh" "$@" ;;
