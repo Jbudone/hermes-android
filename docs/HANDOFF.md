@@ -1,49 +1,92 @@
 # Handoff — phone managed by Hermes
 
-State as of 2026-11-09. Read this first in a new session.
+State as of **2026-11-10 (round 2)**. Read this first in a new session.
 
-## TL;DR
+## TL;DR — how to resume
 
-The phone is fully drivable and the on-device agent works. From the PC:
+Everything lives in this repo (committed + pushed) or in on-device state that
+survives; nothing is only on the PC. **Disconnecting the phone is safe.**
 
     cd ~/jdrive/jstuff/work/personal/hermes-android
-    phone                 # status (auto-detects USB → wireless → mDNS → saved)
-    phone perf | jank | bloat | insights
-    phone shell "…"
-    phone wifi-on         # after a reboot: plug USB, run this, unplug
+    phone                 # status (USB → wireless → mDNS → saved)
+    phone perf | jank | drain | bloat | insights
+    phone wifi-on         # after a reboot OR a USB disconnect: plug USB once
+
+To come back: plug in USB, run `phone` (or `phone wifi-on` to go wireless
+again), then unplug.
 
 ## Device
 
 - Samsung Galaxy S22 Ultra, `SM-S908U1`, Android 16 (SDK 36), aarch64, **not rooted**
 - adb serial (USB): `R5CT41C44ZM`
-- LAN IP: `192.168.1.129`; PC is `192.168.1.250`
-- ZeroTier is installed on the phone; it makes wireless debugging bind to the
-  VPN interface and breaks pairing. Disable it if wireless debugging misbehaves.
+- LAN IP **rotates** (seen `.58`, then `.129`); PC is `192.168.1.250`
+- ZeroTier is installed but **not running**; freeze it (`pm disable-user`) only if
+  wireless debugging misbehaves.
 
 ## What is installed on the phone
 
-- **Termux from F-Droid (0.118.3)** — the Play build was replaced because its
-  signature (`61fa5427`) is incompatible with the Termux add-ons (`7c3fcce`).
-- **Termux:API** and **Termux:Tasker** (F-Droid, signature-matched).
-- **`android-tools` 37.x** — 35.x cannot pair; 37 works (watch for libc++ skew:
-  `pkg upgrade` if `adb` fails with `__hash_16__memory` / `__hash_memory`).
-- **Hermes Agent 0.22.0 canary**, install method `apt` (canary APT channel).
-- **`~/hermes-android`** toolkit + `android-phone-ops` skill in
-  `~/.hermes/skills/`.
-- **Provider**: `openrouter` / `deepseek/deepseek-v4.1-flash`, key copied from
-  the PC's `~/.hermes/.env` (never passed through chat; staged copy deleted).
-- **Scheduled digest**: `termux-job-scheduler` job **1001**, periodic 86400000 ms,
-  `--persisted true`, script `~/.termux/tasker/digest.sh`, posts a
-  `hermes-digest` notification. Cancel: `termux-job-scheduler --cancel --job-id 1001`.
-- Termux and Tasker are whitelisted from battery optimisation.
+- **Termux from F-Droid** (Play build replaced — signature mismatch with add-ons)
+- **Termux:API** and **Termux:Tasker** (F-Droid, signature-matched)
+- **`android-tools` 37.x** (35.x cannot pair)
+- **Hermes Agent canary** (apt/canary channel); provider `openrouter` /
+  `deepseek/deepseek-v4.1-flash`, key copied from the PC's `~/.hermes/.env`
+  (never passed through chat; staged copy deleted).
+- **`~/hermes-android`** toolkit + the `android-phone-ops` skill in `~/.hermes/skills/`
+- Grants that **persist** (re-apply only after a factory reset): `pm grant`
+  `com.termux.permission.RUN_COMMAND` and `WRITE_SECURE_SETTINGS` to Tasker;
+  battery-optimisation whitelist for Termux + Tasker; `termux-job-scheduler`
+  digest job **1001** (periodic 86400000 ms, `--persisted true`,
+  `~/.termux/tasker/digest.sh` → `hermes-digest` notification).
+
+## Toolkit commands
+
+`doctor`, `perf`, `perf-fix`, `jank`, `drain`, `bloat`, `bloat-strip`,
+`insights`, `tasker-run`, `tasker-signal`, `tasker-gen`, `keepalive`,
+`self-update`, `backup`.
+
+The **PC copy is authoritative** and always current. The phone's clone lags —
+refresh it on-device with `hermes-android self-update` (it was last pulled to
+`67decb7`; the PC is ahead).
+
+## Tasker automations (all enabled)
+
+| Profile | Trigger | Task |
+|---|---|---|
+| `*Battery Level 0, 15` | State → Power → Battery Level 0–15 | `Battery Low Guard` (`hermes-android-tasker.sh perf-fix --yes trim-caches kill-bg`) |
+| `*Power Any` | State → Power → Power | `Charger Guard` (`perf-guard.sh --fix`) |
+| `*Device Boot` | Event → System → Device Boot | `Agent Keepalive` (`hermes-android-tasker.sh keepalive` — wake-lock + heartbeat + re-assert digest) |
+
+Each task's action 2 is Notify (text `%stdout`). Tasker is **v6.7.9**.
+Recipes + UI-driving notes: `docs/TASKER-RECIPES.md`. Build new plugin tasks by
+**cloning** a working one (long-press → Clone → rename).
+
+## Storage, backups, tweaks
+
+- Storage **76% used (~26 GB free)**. SMS/MMS were cleared after a full export.
+- **Backups: `~/phone-backups/2026-11-10/`** — `sms.txt` (16,627 w/ bodies),
+  `mms_meta.txt`, `mms_parts_text.txt`, `mms_media/` (2,438 files, 3.1 GB),
+  `calls.txt`, and `secrets/` (Google OAuth client secrets pulled off /sdcard).
+  Re-run any time: **`phone backup`** (PC-side).
+- **Frozen** (`bloat-strip --freeze`, reversible): all Bixby service/agent/
+  wakeup/vision + facebook appmanager/services/system. Freezing stops the
+  services but frees **no disk** — use `--remove` for space.
+- **Background-restricted** (`perf-fix restrict`, reversible): osp.app.signin,
+  samsung.android.rubin.app, podcastaddict, finch, android.vending, sbrowser.
+
+## What does NOT survive
+
+- **Wireless debugging does NOT survive a reboot** (verified by actually
+  rebooting): `adb_wifi_enabled` resets to 0, and both the IP and the port
+  rotate. After any reboot you need **USB once** → `phone wifi-on`. Tasker
+  cannot automate this (Run Shell → error 255).
+- Disconnecting USB also drops the wireless endpoint, so resume starts at USB.
 
 ## How adb access works (the important bit)
 
 `adb pair` is broken with android-tools 35.x on this device. Instead the phone
 holds **the same adb key the PC authorised over USB**, so `adb connect` works
-with no pairing. Details: `docs/PAIRING.md` §D.
+with no pairing. Details: `docs/PAIRING.md` §D. Consequences:
 
-Consequences:
 - On device: `adb connect 127.0.0.1:<port>` then `phone`.
 - The wireless port rotates on every toggle; **adbd stops advertising on mDNS
   once a client is connected**, so if the PC holds the session the phone sees
@@ -62,105 +105,29 @@ So when something must run *inside* Termux, drive the UI:
     adb shell input keyevent 66                               # Enter
 
 The user must unlock first (secure keyguard — never bypass or ask for the PIN).
-`svc power stayon usb` keeps it awake while plugged in.
+`svc power stayon usb` keeps it awake while plugged in. Practical pattern: push
+a small `.sh` to `/sdcard/Download/`, then type `bash /sdcard/Download/<name>.sh`.
 
-Practical pattern: push a small `.sh` to `/sdcard/Download/`, then type
-`bash /sdcard/Download/<name>.sh` and Enter. Avoids quoting problems and keeps
-typed text short.
+## Frame times / jank
 
-## Frame times / jank (new)
+`phone jank` parses `dumpsys gfxinfo` into per-app frame stats (frames, janky %,
+p50/p90/p95/p99, slow-UI/draw, missed-vsync), aggregated per package; `perf`
+emits `JANK` findings too.
 
-`phone jank` parses `dumpsys gfxinfo` (one dump, all processes, ~0.6 s) into
-per-app frame stats: frames, janky %, p50/p90/p95/p99, slow-UI / slow-draw /
-missed-vsync counters, aggregated per package. `perf` collects the same dump
-and emits `JANK` findings, so HIGH/MED jank now shows up next to CPU/thermal.
+- Counters are **cumulative since each process started**, so an app that dragged
+  at boot looks bad hours later. For a windowed number: `phone jank --reset <pkg>`,
+  use the app, then `phone jank`.
+- **The old "systemui 29% HIGH" was boot-cumulative** — windowed it is ~10–11%
+  on a 120 Hz panel. Don't chase it; the real idle cost is memory pressure
+  (see below).
 
-- Counters are **cumulative since each process started** (usually boot), so an
-  app that dragged at boot still looks bad hours later. For a windowed
-  measurement: `phone jank --reset <pkg>`, use the app, then `phone jank`.
-- A 200-frame floor (`--min-frames`) keeps one-off splash screens out of the
-  ranking; `--json` returns every app plus the notable subset.
-- Baseline on this phone (Nov 2026, warm): systemui ~29% janky p95 61 ms
-  (HIGH), launcher 13% (MED), Gboard/Termux ~10% (MED). Systemui is the
-  standing offender, not a one-off.
+## CPU / memory
 
-## Storage work already done
-
-Freed ~19.5 GB (99% → ~80% used): uninstalled Hearthstone (10.8 GB) and Diablo
-Immortal (6.2 GB), cleared Smart Switch leftovers (6.2 GB), removed Facebook +
-Messenger (1.8 GB), froze Bixby language packs, trimmed caches.
-
-Still large if more is needed: `com.android.providers.telephony` ~3.2 GB,
-Messages ~3.1 GB, YouTube ~2.0 GB (clearing these is destructive — ask first).
-
-Removal flow, from an audit to an applied plan:
-
-    phone bloat --json > /tmp/audit.json          # inventory
-    phone bloat-strip --plan /tmp/audit.json       # preview a plan (dry run)
-    phone bloat-strip --plan /tmp/audit.json --yes --freeze   # apply, journalled
-    phone bloat-strip --restore <ledger.jsonl>     # undo
-
-`--plan` reads `bloat-audit --json` and writes a reviewable
-`bloat-plan-<ts>.json` next to the ledger; `--include-unused` adds 90-day-unused
-third-party apps and `--min-mb` filters small ones. Already-disabled packages
-are skipped, and the hard blocklist still wins over anything in the plan file.
-
-## Tasker → Termux bridge: unblocked, profile half-built (in progress)
-
-The plugin error people hit here is **not** a manifest/export problem — the
-receivers are exported and declare the Locale actions. Two real causes, both
-now fixed on this device:
-
-    adb shell am start -n com.termux.tasker/.activities.TermuxTaskerLauncherActivity   # (a)
-    adb shell pm grant net.dinglisch.android.taskerm com.termux.permission.RUN_COMMAND # (b)
-
-(a) freshly installed plugins sit in Android's *stopped* state, and a stopped
-package's manifest receivers never receive broadcasts — launch the plugin app
-once. (b) `com.termux.permission.RUN_COMMAND` is protectionLevel=**dangerous**,
-so `pm grant` works and persists; without it the plugin refuses the caller.
-Verify: `dumpsys package net.dinglisch.android.taskerm | grep -A2 "runtime permissions" | grep termux` → `granted=true`.
-
-State of the work (resume here):
-
-- **Done**: task `Battery Low Guard` exists and is **working** — action 1 is the
-  Termux plugin action (`hermes-android-tasker.sh`, arguments
-  `perf-fix --yes trim-caches kill-bg`, Timeout set to 120 s by expanding the
-  slider into a text field), action 2 is Notify (title `Battery Low Guard`,
-  text `%stdout`). Ran it from Task Edit with the ▶ button → action turns
-  **green** = the bridge works end to end.
-- **Done**: profile `*Battery Level 0, 15` exists (State → Power → Battery
-  Level, From 0 To 15).
-- **Not done**: attaching that task to the profile and enabling the profile,
-  and the same pair for the charger state. Resume: Profiles tab → open the
-  profile → attach existing task `Battery Low Guard` → press back to enable
-  (the toggle is dimmed while the profile has no task / is unsaved) → then
-  repeat with State → Power → **Power** and a `perf-guard.sh --fix` task.
-- Recipe doc was **wrong** for this device and is now corrected: Tasker 6.7.8 on
-  Android 16 has no *Event → Power → Battery Low* and no *Power Connected*; only
-  Battery Changed / Battery Full / Battery Overheating. Use the **State →
-  Power** contexts instead.
-
-## Environment at handoff
-
-- Repo is at the commit that first contained this file plus the jank /
-  `bloat-strip --plan` work; **`~/hermes-android` on the phone was pulled to
-  0368595** and is now 2 commits behind (docs only: 94677b9, 6ab59ec) — re-run
-  the Termux pull pattern above when the phone is next reachable.
-- **adb was disconnected at handoff time** (neither USB nor the wireless
-  endpoint answered). Reconnect with `phone wifi-on` (plug USB once) or re-pair
-  per `docs/PAIRING.md`; then `phone` should report the S22U as before.
-- Tasker 6.7.8 / Termux:Tasker 0.9.0 / Termux 0.118.x; the RUN_COMMAND grant
-  and the plugin's launched state both persist across reboots (they are app
-  state, not session state) — the plugin bridge stays fixed.
-
-## What remains
-
-1. Finish the two Tasker guards (above): attach task to profile, enable, then
-   verify by actually crossing the threshold (or by running the task and
-   checking the Notify output).
-2. Optional further storage cleanup (above).
-3. Optional: messaging gateway on the phone (`hermes gateway run`) so the phone
-   can be driven from Telegram with no laptop.
+- **`phone drain`** samples CPU over N frames and ranks persistent offenders —
+  a 1 s snapshot is noise. First real run: no rogue third-party app; idle CPU is
+  memory-pressure fallout (`kswapd0`, `system_server`, `HeapTaskDaemon`).
+- Memory is the top smoothness lever: swap runs ~2–2.8 GB of 4.2 GB. Relief so
+  far = `perf-fix trim-caches kill-bg` + the restrictions above (reversible).
 
 ## Gotchas that cost time (do not rediscover)
 
@@ -176,7 +143,23 @@ State of the work (resume here):
 | `hermes -c "prompt"` | `-c` = continue session; one-shot is `hermes chat -q "prompt"` |
 | `dumpsys`/`pm` denied in Termux | SELinux; go through `adb shell` (`ao_sh`) |
 | Tasker: `plugin error: missing, disabled, not exported or no permission receiver` | plugin app is in Android **stopped** state (launch it once) and/or Tasker lacks `com.termux.permission.RUN_COMMAND` (`pm grant …`) |
-| `adb shell input text "%stdout"` types `" tdout"` | `input text` rewrites `%s` to a space; for Tasker variables use the field's variable-pick (tag) icon, not the keyboard |
-| `adb shell input text "a b"` types `"ab"` | spaces need `%s` (see above); keep typed strings short, push a `.sh` to `/sdcard/Download/` instead |
-| Tasker has no *Battery Low* / *Power Connected* event | Tasker 6.7.8 / Android 16 removed them; use State → Power → Battery Level / Power |
-| Termux:Tasker config screen opened by hand says "The (unknown) App (null) has not been granted …" | expected when launched from adb (no calling app); it is not the plugin failure — check the two causes above instead |
+| `adb shell input text "%stdout"` types `" tdout"` | `input text` rewrites `%s` to a space; for Tasker variables use the field's variable-pick (tag) icon |
+| `adb shell input text "a b"` types `"ab"` | spaces need `%s`; keep strings short, push a `.sh` to `/sdcard/Download/` |
+| Tasker has no *Battery Low* / *Power Connected* event | Tasker 6.7.x / Android 16 removed them; use State → Power → Battery Level / Power |
+| Termux:Tasker config says "The (unknown) App (null) has not been granted …" | expected when launched from adb (no calling app); not the plugin failure |
+| **New Tasker task/profile vanishes** | Tasker does not flush immediately — `am force-stop` right after creating it loses it. Verify after a Tasker restart |
+| Tasker `Run Shell` → **Error 255** | can't write global settings here even with WRITE_SECURE_SETTINGS; use `adb shell` |
+| Plugin **Executable field autocorrected** (`hermes-android-tasker.sh` → `hermes Android tasker.sh`) | type a few chars and tap the file-autocomplete suggestion |
+| `dumpsys diskstats` sizes look wrong / frozen | per-package sizes are **stale** on this device; `bloat` now uses live `cmd package get-package-storage-stats`. Trust `df` |
+| `pm clear` seems not to work | re-query **after** the provider restarts; an immediate read shows pre-clear rows |
+| MMS attachments unreachable by file-transfer apps | they live in the telephony provider's private storage; use `content://mms/part` + `content read` (`phone backup`) |
+
+## What remains
+
+1. **Telegram gateway** on the phone — exact steps in `docs/PHONE-GATEWAY.md`;
+   needs the user's bot token (entered on the device, never through chat).
+2. Decide on `Outlook` (652 MB) / `Samsung Notes` (368 MB): freeze / remove /
+   keep. Games (~3.9 GB) are in use, not dormant. `com.android.carrierconfig`
+   was flagged by the sweep but is system-critical — leave it.
+3. Optional: periodic `perf-guard` to catch regressions (the daily digest partly
+   covers it).
