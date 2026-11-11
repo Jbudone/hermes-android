@@ -94,15 +94,21 @@ Next — round 2 (execute in this order):
        ~7%, system_server spiking to 32%, HeapTaskDaemon 8+ min CPU. So the fix
        is #1/#5 (less resident memory), not more restrictions. Run `drain`
        again after #5 to confirm the drop.
-3. [ ] Fix the toolkit's size numbers. `dumpsys diskstats` per-package sizes
-       are stale on this device (the easyMover "6.4 GB" phantom); make
-       `bloat`/`phone` size from a source that moves, cross-checked vs `df`.
-4. [ ] `phone backup` subcommand: SMS + MMS metadata + MMS media via
-       `content://mms/part` + `content read` (proven this session), repeatable,
-       with a restore note.
-5. [ ] Dormant-app sweep (`bloat --include-unused`): 738 packages; games ~3.9 GB
-       (Monopoly Go 1.2, Clash Royale 1.07, Archero II 0.96, SimCity 0.64).
-       Freeze 90-day-unused third-party apps (feeds #1/#2). Reversible via ledger.
+3. [x] Fix the toolkit's size numbers — DONE. `bloat` now sizes from
+       `cmd package get-package-storage-stats` (live), run as ONE on-device loop
+       so it stays fast; `dumpsys diskstats` is only a fallback. Verified:
+       Messages 2975 → 178.9 MB, telephony 3189 → 11 MB, easyMover phantom gone.
+4. [x] `phone backup` — DONE. New `backup` command exports SMS + MMS metadata +
+       MMS text + all MMS media (`content://mms/part` + `content read`) + call
+       log to `~/phone-backups/<date>/`; `--no-media` for a fast text-only pass;
+       restore note included. Verified end-to-end (calls=2000).
+5. [x] Dormant-app sweep — DONE (partial). Froze 7 unambiguous bloat packages
+       (all Bixby service/agent/wakeup/vision + facebook appmanager/services/
+       system, ~894 MB of APK) via `bloat-strip --freeze`. NOTE: `disable-user`
+       stops the services and their background CPU but does NOT free disk — use
+       `--remove` (reversible via install-existing) for space. Deliberately NOT
+       frozen, needs your call: Outlook (652 MB), Samsung Notes (368 MB),
+       com.android.carrierconfig (system-critical). Games (~3.9 GB) are in use.
 6. [ ] Finish remote control: Telegram gateway (needs bot token) + confirm
        wireless debugging survives a reboot. Wireless adb itself already works
        standalone (verified: PC drives the phone at 192.168.1.58:34693 with USB
