@@ -80,16 +80,20 @@ Next — prioritized improvement plan (execute in this order):
 
 Next — round 2 (execute in this order):
 
-1. [ ] Cut memory pressure (top smoothness lever now). Baseline: swap ~2.8 GB
-       used of 4.2 GB, MemAvailable ~2.6 GB of 7.4 GB, and worsening. Top RSS:
-       system_server 529 MB, GMS ~570 MB (2 procs), Google app ~405 MB,
-       Messages 296 MB, finch 314 MB, Outlook 249 MB, Azure Auth 137 MB,
-       App Manager 133 MB. Relieve with kill-all + trim-caches, restrict the
-       non-essential resident apps (`perf-fix restrict`), re-measure. Target
-       swap < ~1 GB.
-2. [ ] Standing background-drain sweep (generalize the AirDroid win). Sample
-       CPU over time per app (not a 1s snapshot), rank persistent offenders,
-       restrict/freeze. Fold in the pending periodic `perf-guard`.
+1. [x] Cut memory pressure — DONE (partial, reversible). `perf-fix trim-caches
+       kill-bg` + `restrict` on 6 non-essential resident apps (osp.app.signin,
+       samsung.android.rubin.app, podcastaddict, finch, vending, sbrowser).
+       Swap used **2.83 → ~2.02 GB** (~800 MB reclaimed); MemAvailable
+       ~2.6 → ~3.3 GB. Ceiling reached: the remaining ~2 GB is core
+       (GMS ~545 MB, system_server, systemui) — further gains need #5.
+       Revert any of it: `perf-fix --yes "unrestrict <pkg>"`.
+2. [x] Standing background-drain sweep — DONE. New `hermes-android drain`
+       command: samples `dumpsys cpuinfo` over N frames and ranks avg/max CPU
+       per process (a 1s snapshot is noise). First real run found **no rogue
+       third-party app** — the idle CPU is memory-pressure fallout: kswapd0
+       ~7%, system_server spiking to 32%, HeapTaskDaemon 8+ min CPU. So the fix
+       is #1/#5 (less resident memory), not more restrictions. Run `drain`
+       again after #5 to confirm the drop.
 3. [ ] Fix the toolkit's size numbers. `dumpsys diskstats` per-package sizes
        are stale on this device (the easyMover "6.4 GB" phantom); make
        `bloat`/`phone` size from a source that moves, cross-checked vs `df`.
