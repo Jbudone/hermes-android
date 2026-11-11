@@ -15,15 +15,33 @@ Shipped:
 - [x] `bloat-strip --plan <audit.json>`: audit → reviewable plan → apply in one flow
 
 In progress:
-- [~] Tasker profiles for instant reactions — bridge unblocked (RUN_COMMAND
-      granted + plugin launched once, see `docs/HANDOFF.md`); task
-      `Battery Low Guard` built and running, profile `Battery Level 0, 15`
-      created; **still to do**: attach task → profile, enable it, then the
-      charger-state pair. Recipes corrected to State → Power contexts.
+- [~] Tasker guards for instant reactions. Guard 1 (`Battery Low Guard` +
+      profile `*Battery Level 0, 15`) **rebuilt and verified** this session
+      (plugin runs, both actions green, profile attached + enabled). Guard 2
+      (charger) is half-built — finish it, then extend.
+      Note: the previous session's guards were lost when Tasker updated
+      6.7.8 → 6.7.9; rebuild done from `docs/TASKER-RECIPES.md`.
 
-Next:
-- [ ] Optional: messaging gateway on the phone so it can be driven from Telegram
-- [ ] Optional: clear telephony/messages data (~6 GB) if the user agrees
+Next — prioritized improvement plan (execute in this order):
+
+1. [ ] Fix systemui jank (the standing HIGH). Windowed measurement
+       (`phone jank --reset systemui` → use → `phone jank`), rule out Samsung
+       blur/transparency, launcher animations and overlays, apply
+       `perf-fix anim-fast`, re-measure. Target systemui < ~15% janky.
+2. [ ] Reclaim ~6 GB: telephony provider (~3.2 GB), Messages (~3.1 GB),
+       YouTube cache (~2 GB). Back up threads first; destructive, needs sign-off.
+3. [ ] Finish + extend Tasker guards: charger pair (`perf-guard.sh --fix`),
+       plus a screen-off / periodic `perf-guard` to catch regressions.
+4. [ ] Harden on-device agent background survival: `termux-wake-lock`,
+       battery-optimisation exemption for Termux + Tasker, keep the digest on
+       `termux-job-scheduler`, add a watchdog that logs agent death.
+5. [ ] Security cleanup of shared storage: move the Google OAuth
+       `client_secret_*.json` out of `/sdcard/Download`, remove stray scripts,
+       and decide the ZeroTier-vs-wireless-debugging policy (ZeroTier rebinds
+       wireless debugging and breaks pairing).
+6. [ ] Remote-control path with no laptop: run the Hermes gateway on the phone
+       (drive from Telegram) + reboot-surviving key-based wireless adb with a
+       reconnect helper (`docs/PAIRING.md`).
 
 Known limits:
 - Termux background survival depends on battery exemptions + wake-lock; not
