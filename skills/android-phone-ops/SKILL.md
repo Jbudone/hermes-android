@@ -145,3 +145,21 @@ hermes-android tasker-gen ...         generate importable .tsk.xml
   permission can reach a local server, so keep the Hermes gateway token-gated.
 - Android may suspend Termux in the background: `termux-wake-lock` plus a
   battery-optimisation exemption helps but does not guarantee it.
+- **Build the 2nd+ plugin task by CLONING a working one**, not from scratch:
+  long-press the task → 3-dot → Clone → rename. The clone keeps the plugin
+  action *and* the timeout, so you only edit Executable / Arguments / title.
+- **MMS attachments ARE extractable over adb** (no root): list parts with
+  `content query --uri content://mms/part --projection _id,mid,ct,text` (the
+  `text` column gives all MMS bodies in one query), then pull bytes per media
+  part with `adb exec-out content read --uri content://mms/part/<id> > f.jpg`.
+  `--where`/`--sort` are NOT supported by this device's `content` CLI.
+- **`dumpsys diskstats` per-package sizes are stale on this device** — they did
+  not change after freeing 5.8 GB, and reported 6.4 GB for a package whose
+  `pm clear` *and* `pm uninstall --user 0` freed nothing. Trust `df`, not
+  `diskstats`/`bloat` per-package sizes.
+- **Verify a `pm clear` on a provider after it restarts** — an immediate
+  `content query` can be served by the not-yet-restarted process and show the
+  old rows; re-query and look for `SQLITE_CANTOPEN_ENOENT` (DB gone) to confirm.
+- **The plugin's Executable field is autocorrected** — typing
+  `hermes-android-tasker.sh` yields `hermes Android tasker.sh`. Type a few
+  chars (`perf`, `herm`) and tap the field's file-autocomplete suggestion instead.
