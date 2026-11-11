@@ -34,6 +34,11 @@ ao_sh_quiet 'pm list packages --user 0 -s'         >"$DIR/pkgs-system.txt" 2>/de
 ao_sh_quiet 'pm list packages --user 0 -d'         >"$DIR/pkgs-disabled.txt" 2>/dev/null
 ao_sh_quiet 'pm list packages --user 0 -e'         >"$DIR/pkgs-enabled.txt" 2>/dev/null
 ao_sh_quiet 'dumpsys diskstats'                   >"$DIR/diskstats.txt"  2>/dev/null
+# Accurate per-package sizes. `dumpsys diskstats` (above) is STALE on this
+# device — it reported 6.4 GB for a package that `pm clear` freed nothing from.
+# `cmd package get-package-storage-stats` is live; run the loop ON the device so
+# it is one adb round-trip, not one per package.
+ao_sh_quiet 'for p in $(pm list packages --user 0 | sed "s/^package://"); do s=$(cmd package get-package-storage-stats --user 0 "$p" 2>/dev/null | awk "/^code:/{c=\$2} /^data:/{d=\$2} /^cache:/{k=\$2} END{print (c+0)+(d+0)+(k+0)}"); printf "%s %s\n" "$p" "${s:-0}"; done' >"$DIR/sizes.txt" 2>/dev/null
 ao_sh_quiet 'dumpsys usagestats'                  >"$DIR/usagestats.txt" 2>/dev/null
 ao_sh_quiet 'dumpsys package packages'            >"$DIR/package.txt"    2>/dev/null
 fi
@@ -62,24 +67,31 @@ third=pkgs("pkgs-3p.txt"); system=pkgs("pkgs-system.txt")
 disabled=pkgs("pkgs-disabled.txt"); enabled=pkgs("pkgs-enabled.txt")
 allpkg=third|system
 
-# --- sizes from dumpsys diskstats (Android 14+ emits JSON-quoted name arrays
-#     and separate App / Data / Cache size arrays; sum them per package) ---
+# --- sizes: prefer the LIVE `cmd package get-package-storage-stats` capture
+#     (sizes.txt). dumpsys diskstats per-package sizes are stale on this device
+#     (they reported 6.4 GB for a package that freed nothing), so it is only a
+#     fallback when sizes.txt is missing/empty.
 sizes={}
-appsize=[]; datasize=[]; cachesize=[]; names=[]
-for l in lines("diskstats.txt"):
-    if l.startswith("Package Names:"):
-        names=re.findall(r'"([^"]+)"', l) or [x.strip() for x in l.split(":",1)[1].strip().strip("[]").split(",") if x.strip()]
-    elif l.startswith("App Data Sizes:"):
-        datasize=[int(x) for x in re.findall(r"\d+", l.split(":",1)[1])]
-    elif l.startswith("App Sizes:"):
-        appsize=[int(x) for x in re.findall(r"\d+", l.split(":",1)[1])]
-    elif l.startswith("Cache Sizes:"):
-        cachesize=[int(x) for x in re.findall(r"\d+", l.split(":",1)[1])]
-for i,n in enumerate(names):
-    a  = appsize[i]   if i < len(appsize)   else 0
-    dd = datasize[i]  if i < len(datasize)  else 0
-    c  = cachesize[i] if i < len(cachesize) else 0
-    sizes[n]=a+dd+c
+for l in lines("sizes.txt"):
+    parts=l.split()
+    if len(parts)>=2 and parts[1].isdigit():
+        sizes[parts[0]]=int(parts[1])
+if not sizes:
+    appsize=[]; datasize=[]; cachesize=[]; names=[]
+    for l in lines("diskstats.txt"):
+        if l.startswith("Package Names:"):
+            names=re.findall(r'"([^"]+)"', l) or [x.strip() for x in l.split(":",1)[1].strip().strip("[]").split(",") if x.strip()]
+        elif l.startswith("App Data Sizes:"):
+            datasize=[int(x) for x in re.findall(r"\d+", l.split(":",1)[1])]
+        elif l.startswith("App Sizes:"):
+            appsize=[int(x) for x in re.findall(r"\d+", l.split(":",1)[1])]
+        elif l.startswith("Cache Sizes:"):
+            cachesize=[int(x) for x in re.findall(r"\d+", l.split(":",1)[1])]
+    for i,n in enumerate(names):
+        a  = appsize[i]   if i < len(appsize)   else 0
+        dd = datasize[i]  if i < len(datasize)  else 0
+        c  = cachesize[i] if i < len(cachesize) else 0
+        sizes[n]=a+dd+c
 
 # --- last-used from dumpsys usagestats (Android 12+ = an event log:
 #     time="..." type=ACTIVITY_RESUMED package=...) ---
