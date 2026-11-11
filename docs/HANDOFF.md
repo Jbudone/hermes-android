@@ -140,6 +140,19 @@ State of the work (resume here):
   Battery Changed / Battery Full / Battery Overheating. Use the **State →
   Power** contexts instead.
 
+## Environment at handoff
+
+- Repo is at the commit that first contained this file plus the jank /
+  `bloat-strip --plan` work; **`~/hermes-android` on the phone was pulled to
+  0368595** and is now 2 commits behind (docs only: 94677b9, 6ab59ec) — re-run
+  the Termux pull pattern above when the phone is next reachable.
+- **adb was disconnected at handoff time** (neither USB nor the wireless
+  endpoint answered). Reconnect with `phone wifi-on` (plug USB once) or re-pair
+  per `docs/PAIRING.md`; then `phone` should report the S22U as before.
+- Tasker 6.7.8 / Termux:Tasker 0.9.0 / Termux 0.118.x; the RUN_COMMAND grant
+  and the plugin's launched state both persist across reboots (they are app
+  state, not session state) — the plugin bridge stays fixed.
+
 ## What remains
 
 1. Finish the two Tasker guards (above): attach task to profile, enable, then
