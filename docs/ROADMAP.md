@@ -33,14 +33,18 @@ Next — prioritized improvement plan (execute in this order):
        2.5 GB swap in use (MemAvailable ~2.9 GB of 7.2 GB).**
        DONE: AirDroid frozen (`pm disable-user --user 0`, reversible) —
        both PIDs gone, ~9% CPU reclaimed. Follow-up: relieve memory pressure.
-2. [~] Reclaim ~6 GB. Backups captured to ~/phone-backups/2026-11-10/
-       (sms.txt 16,627 rows with bodies; calls.txt 2,000; mms_meta.txt 25,899).
-       MMS media (2,438 parts — jpg/heic/png/gif/mp4/3gp/pdf) pulling in the
-       background via `content://mms/part` → mms_media/. Destructive clear of
-       telephony (3.3 GB) + Messages (2.8 GB) is **pending the media pull**.
-       NOTE: the `easyMover` (Smart Switch) 6.4 GB reported by
-       `dumpsys diskstats` is a **phantom** — `pm clear` *and*
-       `pm uninstall --user 0` both return Success and free nothing. Ignore it.
+2. [x] Reclaim ~6 GB — DONE. Freed ~5.8 GB (df: 84.6 → 78.8 GB used; 82 → 76%).
+       SMS + MMS cleared via `pm clear com.android.providers.telephony`; the
+       call log survived (2,000 rows — served by the contacts provider).
+       Messages app data cleared too (`pm clear com.google.android.apps.messaging`).
+       Complete backups in ~/phone-backups/2026-11-10/: sms.txt (16,627 with
+       bodies), mms_meta.txt (25,899), mms_parts_text.txt, mms_media/ (2,438
+       files, 3.1 GB), calls.txt (2,000).
+       CAVEAT: `dumpsys diskstats` per-package sizes are **stale** on this
+       device — they did not change after freeing 5.8 GB — so anything derived
+       from them (incl. the easyMover 6.4 GB "phantom") can't be trusted.
+       A stale provider read also briefly showed the messages as still present;
+       verify clears by re-querying after the provider restarts.
 3. [ ] Finish + extend Tasker guards: charger pair (`perf-guard.sh --fix`),
        plus a screen-off / periodic `perf-guard` to catch regressions.
 4. [ ] Harden on-device agent background survival: `termux-wake-lock`,
