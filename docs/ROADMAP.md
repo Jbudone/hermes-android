@@ -78,6 +78,32 @@ Next — prioritized improvement plan (execute in this order):
        returns **Error 255** — permission/SELinux, not PATH; the global setting
        may already persist across reboots, unverified).
 
+Next — round 2 (execute in this order):
+
+1. [ ] Cut memory pressure (top smoothness lever now). Baseline: swap ~2.8 GB
+       used of 4.2 GB, MemAvailable ~2.6 GB of 7.4 GB, and worsening. Top RSS:
+       system_server 529 MB, GMS ~570 MB (2 procs), Google app ~405 MB,
+       Messages 296 MB, finch 314 MB, Outlook 249 MB, Azure Auth 137 MB,
+       App Manager 133 MB. Relieve with kill-all + trim-caches, restrict the
+       non-essential resident apps (`perf-fix restrict`), re-measure. Target
+       swap < ~1 GB.
+2. [ ] Standing background-drain sweep (generalize the AirDroid win). Sample
+       CPU over time per app (not a 1s snapshot), rank persistent offenders,
+       restrict/freeze. Fold in the pending periodic `perf-guard`.
+3. [ ] Fix the toolkit's size numbers. `dumpsys diskstats` per-package sizes
+       are stale on this device (the easyMover "6.4 GB" phantom); make
+       `bloat`/`phone` size from a source that moves, cross-checked vs `df`.
+4. [ ] `phone backup` subcommand: SMS + MMS metadata + MMS media via
+       `content://mms/part` + `content read` (proven this session), repeatable,
+       with a restore note.
+5. [ ] Dormant-app sweep (`bloat --include-unused`): 738 packages; games ~3.9 GB
+       (Monopoly Go 1.2, Clash Royale 1.07, Archero II 0.96, SimCity 0.64).
+       Freeze 90-day-unused third-party apps (feeds #1/#2). Reversible via ledger.
+6. [ ] Finish remote control: Telegram gateway (needs bot token) + confirm
+       wireless debugging survives a reboot. Wireless adb itself already works
+       standalone (verified: PC drives the phone at 192.168.1.58:34693 with USB
+       unplugged).
+
 Known limits:
 - Termux background survival depends on battery exemptions + wake-lock; not
   guaranteed by Android.
