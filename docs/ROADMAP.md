@@ -5,7 +5,7 @@ Shipped:
 - [x] perf report / fix, bloat audit / strip, insights, doctor
 - [x] Tasker bridge both ways + verified `.tsk.xml` generator
 - [x] Termux bootstrap + wireless-adb pairing helper
-- [x] `android-phone-ops` skill + offline test suite (32 tests)
+- [x] `android-phone-ops` skill + offline test suite (50 tests)
 - [x] `phone` one-command entry point (USB → connected → mDNS → saved)
 - [x] On-device Hermes (canary apt) configured and driving itself over adb-to-self
 - [x] Termux:API / Termux:Tasker installed, signature-matched (F-Droid Termux)
@@ -67,6 +67,9 @@ Next — prioritized improvement plan (execute in this order):
        scripts (hm-*, ha-update.sh, termux-migrate.sh). ZeroTier
        (`com.zerotier.one`) is installed but **not running** — left in place;
        freeze it (`pm disable-user`) only if wireless debugging misbehaves.
+       CORRECTION 2026-11-11: this is wrong — ZeroTier **is** running as an
+       always-on VPN (`tun0 172.27.110.73/16`, VpnTransportInfo sessionId
+       "ZeroTier One", ~4.8% CPU). See round-3 #9.
 6. [~] Remote-control path with no laptop. Wireless adb DONE: enabled
        (`settings put global adb_wifi_enabled 1`), phone now at
        **192.168.1.58:34693**, key-based connect verified, and
@@ -118,6 +121,118 @@ Next — round 2 (execute in this order):
        Current endpoint: **192.168.1.129:41373**.
        Gateway: exact steps in `docs/PHONE-GATEWAY.md`; needs the user's bot
        token (entered on the device, never through chat) — not yet set up.
+
+Next — round 3 (backlog from the 2026-11-11 evidence pass; discuss/execute one
+by one):
+
+1. [ ] **Termux:Boot layer** — install the F-Droid `com.termux.boot` add-on and
+       put `~/.termux/boot/*` scripts in place (`termux-wake-lock`, re-assert
+       job 1001, heartbeat to the PC). Covers the half Tasker provably cannot:
+       agent survival across a reboot. NOTE: `docs/PHONE-GATEWAY.md` §5 already
+       points at Termux:Boot for the gateway; it is not installed (no
+       `com.termux.boot` package on the device).
+2. [ ] **Tasker "ADB Wifi" action as the reboot-survivable adb fix** — Tasker
+       has shipped an ADB Wifi action since 5.9.2 that runs shell commands as
+       the adb-shell uid over a local pairing, which is the wall that makes Run
+       Shell return Error 255. VERIFY FIRST: pairing state may not survive a
+       reboot either, so don't promise "no USB ever" until tested.
+3. [ ] **`phone state --json` + `phone verify` drift check + generated
+       HANDOFF** — docs already contradict each other (.58 vs .129:41373) and
+       go stale whenever the port rotates. Persist device state (endpoint, df,
+       swap, frozen/restricted sets, job IDs, running users) to
+       `~/.local/state/hermes-android/state.json`, diff doc claims against the
+       device, and render HANDOFF.md from it instead of hand-editing.
+4. [ ] **Run history + trend-based regression alerts** — append every
+       `perf`/`jank`/`drain`/`bloat` run to JSONL; alert (notify-send on the
+       PC, Healthchecks ping) only when windowed jank or swap crosses the
+       trailing median. A single-snapshot "periodic perf-guard" catches bad
+       minutes, not regressions.
+5. [ ] **Backups: encrypt at rest, prove restore, scope the device key** —
+       `~/phone-backups/2026-11-10/secrets/` is plaintext Google OAuth client
+       secrets; encrypt via the getkey/sync-secrets toolchain, give the
+       on-device Hermes its own scoped provider key instead of the PC's full
+       OpenRouter key, add a restore drill (import sms/mms into a scratch
+       sqlite, verify 16,627 / 2,438 counts + checksums), and an age-out policy
+       for the 3.1 GB of `mms_media`.
+6. [ ] **Measured per-boot memory baseline + one zram experiment** — swap is
+       back to **2.54 GB used** of 4.19 GB (round-2 recorded ~2.02 GB), so the
+       "remaining ~2 GB is core, ceiling reached" claim is stale. Capture a
+       per-boot baseline, then vary zram size / `vm.swappiness` / GMS
+       background policy one at a time with a documented revert; clear the two
+       deferred bloat calls (Outlook 652 MB, Samsung Notes 368 MB) through the
+       reversible `--remove` path while recording real `df` deltas.
+7. [ ] **`phone orphans` — leftover app data whose package is gone** —
+       measured **~5.7 GB**: 15 dirs under `/sdcard/Android/obb` with no
+       installed package (warpath 1239 MB, roc 847 MB, snailgames 844 MB,
+       zombie.survival.craft.z 664 MB, ec2 503 MB, harvest 479 MB, escapists2
+       366 MB, dayzsurvival 355 MB, battlecmd 244 MB, stardewvalley 212 MB, +4
+       small). `bloat`/`bloat-strip` cannot see any of it (they audit packages,
+       not leftovers). Command lists obb/data dirs with no `pm path`, size +
+       mtime; `--clean` moves to a trash dir first.
+8. [ ] **Multi-user awareness (Secure Folder = user 150)** — `pm list users`
+       shows `UserInfo{150:Secure Folder}` RUNNING_UNLOCKED and it runs its own
+       GMS 250 MB + gms.unstable 237 MB + osp.app.signin 234 MB + vending ×2
+       ≈297 MB + restore 104 MB + Samsung services (≈1.5 GB RSS). User-0 ops
+       miss it entirely (`SecurityException: Shell does not have permission to
+       access user 150`), which is why round-2's `restrict osp.app.signin`
+       moved nothing. Needs per-user audits, `--user` on restrict/freeze, and a
+       `doctor` line for extra running users — plus a decision on whether
+       Secure Folder stays warmed.
+9. [ ] **ZeroTier: reconcile the docs and decide** — it is **not** "installed
+       but not running": `dumpsys connectivity` shows NetworkAgentInfo VPN
+       CONNECTED, `tun0 172.27.110.73/16`, `VpnTransportInfo{… sessionId=
+       ZeroTier One}`, owner uid 10579, all uids routed, ~4.8% CPU in a 7 s
+       sample. Either (a) promote it to the documented stable remote path (a
+       fixed 172.27.x address beats the rotating 192.168.1.x + adb port), or
+       (b) stop/freeze it deliberately. Not an accidental always-on VPN on a
+       device holding secrets.
+10. [ ] **Digest self-verification + job constraint rework** — job
+        #u0a449/1001 is registered/PERSISTED with the digest.sh extra, but its
+        constraint history shows `WITHIN_QUOTA` flipping and its state line says
+        `Standby bucket: NEVER` while `am get-standby-bucket com.termux` = 5
+        (exempted); its `Network: 107` is the ZeroTier VPN, so delivery depends
+        on #9. "The daily digest is live" is currently unverified — have the
+        digest write a dated marker we can read back, report last-run age in
+        `doctor`, and re-think the constraints (`charging=false`,
+        battery-not-low, 24 h period with flex=period).
+11. [ ] **Tasker config backup + guard journal** — nothing verifies the guards
+        exist or fire: Tasker's own run log's newest entry is **2024-10-06**
+        (`/sdcard/Tasker/log/runlog.txt`), `/sdcard/Tasker/configs/user` is
+        empty, and Tasker 6.7.9 was installed 2026-11-10 — the same update that
+        wiped the guards last time. Schedule a config export, pull it into
+        `~/phone-backups/` and version it in the repo; have each guard append
+        one line to a log we can read ("guard fired at T, freed X").
+12. [ ] **`phone listeners` — what the phone exposes** — `/proc/net/tcp{,6}` +
+        nmap from the PC: 35303 open (uid 10092 `com.android.proxyhandler`),
+        53601 open bound to 192.168.1.58 (uid 10246 GMS), 6300 bound 0.0.0.0
+        (uid 1000) but not reachable from the LAN. Render uid→package, bind
+        address, and an actual reachability test; flag anything on the LAN that
+        isn't adb.
+13. [ ] **`phone wifi-hygiene`** — 97 saved networks with auto-join, including
+        "325 renovation Temp", "Barnhome HB", "Capital Grille Guest",
+        "CoxWiFi", "Guest@OakCreekShoppingCenter", "MightyMorphinInternets*".
+        List security/auto-join per network and prune the ones never chosen.
+14. [ ] **Readable uid attribution + honest storage attribution** — (a) the top
+        partial wakelock is `u0a687` 15m26s ×3 = `com.anthropic.claude` (then
+        ch.protonmail u0a518, shealth u0a306, daemonapp u0a215, vending u0a249,
+        gms u0a246); `drain`/`insights` should print `pkg (uid)` and rank
+        background budget, not kernel threads. (b) `phone storage`: df, live
+        per-package sizes, shared-dir du (/sdcard/Android 12.2 GB — obb 6.3,
+        media 2.7, data 3.2; DCIM 3.6 GB), orphans (#7), and an explicit
+        "unattributable /data remainder" (diskstats claims App Size 40.4 GB and
+        is documented as untrustworthy).
+15. [ ] **Persist the reversibility ledgers** — `bloat-strip`/`perf-fix`
+        ledgers live in `$TMPDIR/ao-run/<serial>/`, which is scratch and
+        pruned; the undo path for the 7 frozen packages currently expires with
+        it. Move to a durable state dir and/or export the live
+        frozen/restricted set on every apply.
+
+Doc/reality drift found 2026-11-11 (fix as part of #3):
+- ZeroTier is running as an always-on VPN (see #9).
+- Digest delivery is unproven (see #10).
+- Reversibility ledgers are ephemeral (see #15).
+- Offline suite is **50 tests**, not the 32 recorded under "Shipped".
+- Android user 150 (Secure Folder) exists and is running (see #8).
 
 Known limits:
 - Termux background survival depends on battery exemptions + wake-lock; not

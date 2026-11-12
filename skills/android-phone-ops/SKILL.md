@@ -173,3 +173,33 @@ hermes-android tasker-gen ...         generate importable .tsk.xml
   even with `WRITE_SECURE_SETTINGS` granted and after a Tasker restart — it is
   permission/SELinux, not a PATH problem. Do privileged toggles over `adb shell`
   instead, and treat the on-device re-enable of wireless debugging as unsolved.
+- **Secondary Android users are invisible to user-0 ops.** This device runs
+  Android **user 150 (Samsung Secure Folder)**, which carries its own GMS +
+  Play Store + `osp.app.signin` (~1.5 GB RSS). `pm list packages -d`, `appops`,
+  `restrict` etc. default to user 0 and either silently miss it or print
+  `SecurityException: Shell does not have permission to access user 150`. Run
+  `pm list users` and `dumpsys meminfo | grep 'user 150'` before claiming a
+  memory win.
+- **Package audits miss leftover app data.** `/sdcard/Android/obb/<pkg>` and
+  `/sdcard/Android/data/<pkg>` survive an uninstall and are invisible to `pm`
+  (measured: 15 orphan OBB dirs ≈ 5.7 GB). Diff those dirs against `pm path
+  <pkg>` before proposing storage work.
+- **Raw uids everywhere** (`u0a687`, `10246` in `insights`/`drain`/wakelocks and
+  `/proc/net/tcp`). Map with `pm list packages -U | grep uid:<n>`, dropping the
+  `u0a` prefix (u0a687 = uid 10687 = package name).
+- **A registered job is not a running job.** `termux-job-scheduler` job 1001
+  exists + PERSISTED while its constraints churn
+  (`Unsatisfied constraints: … WITHIN_QUOTA`, `Standby bucket: NEVER`) even with
+  `am get-standby-bucket com.termux` = 5 (exempted). Check the job's block in
+  `dumpsys jobscheduler` (note its `Network:` id — it can resolve onto a VPN)
+  before trusting a "daily digest is live" claim.
+- **Reversibility ledgers live in `$TMPDIR/ao-run/<serial>/`**, which is scratch
+  and pruned — export the ledger (or the current disabled/frozen package set)
+  if the undo path must outlive the session.
+- **ZeroTier may be an active always-on VPN** (`dumpsys connectivity | grep -i
+  'VPN:'` → `tun0`, `VpnTransportInfo{… sessionId=ZeroTier One}`) even when the
+  docs say it is not running; it routes all uids and costs CPU. Verify state
+  instead of trusting the note.
+- **To audit what the phone exposes on the LAN**: `cat /proc/net/tcp{,6}` (uid +
+  hex port, state `0A` = LISTEN) then `nmap -Pn -p <ports> <phone-ip>` from the
+  PC — bound-to-0.0.0.0 ≠ reachable, and vice versa.
