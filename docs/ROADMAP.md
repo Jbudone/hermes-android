@@ -254,6 +254,27 @@ by one):
         on-device wireless-debugging tap. UI TIP: the app's bottom-bar button
         sits under the gesture nav bar so tap-by-coordinates silently fails —
         press `input keyevent 61` (TAB) until focus reaches it, then 66.
+        UPDATE 2026-11-15 (later): **`rish` works** — the on-device agent can now
+        have a shell-uid shell. Recipe: extract `assets/rish` +
+        `assets/rish_shizuku.dex` from the APK, push to /sdcard, `cp` into
+        Termux's private `~/rish/` (Android 14+ refuses a writable dex, so the
+        dex must live off /sdcard), `chmod 400` the dex, then run
+        `PATH=/system/bin:$PATH RISH_APPLICATION_ID=com.termux ~/rish/rish -c id`
+        → `uid=2000(shell) … u:r:shell:s0`. **The unlock was whitelisting Shizuku
+        from battery optimisation** (`dumpsys deviceidle whitelist
+        +moe.shizuku.privileged.api`) — before that both rish and Tasker died
+        with "Request timeout … may be blocked by your system". Also: Tasker and
+        Termux now show as authorized in Shizuku's app list (per-app `Switch`
+        nodes; the "Authorized N applications" count is stale), and Tasker holds
+        `API_V23` via `pm grant`.
+        REMAINING: Tasker→Shizuku end-to-end is configured but **not yet
+        proven** — a task "Shizuku Shell Test" was created with Run Shell +
+        "Use Shizuku" checked (verified in the action editor), but the phone was
+        unplugged mid-test before a clean `settings put global
+        adb_wifi_enabled 1` run through it (its Command field was also left
+        mangled — clear it with Ctrl+A + DEL). Finishing that test, then a
+        boot-profile version, is the next step; if it passes, the Error-255
+        blocker is closed.
 
 Doc/reality drift found 2026-11-11 (fix as part of #3):
 - ZeroTier is running as an always-on VPN (see #9).

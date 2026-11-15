@@ -29,6 +29,68 @@ resolves the right adb target automatically (explicit `AO_ADB_SERIAL` →
 a connected `localhost:*` → the single connected device). Never run `pm`/`cmd`
 directly inside Termux and expect it to work.
 
+## Shizuku: shell-uid privileges without adb (non-root)
+
+Shizuku runs a server as uid 2000 (shell) and lets approved apps issue the same
+privileged calls `adb shell` can. Two consumers matter here: **Tasker** (native
+"Use Shizuku" checkbox in Run Shell — this is what fixes Run Shell → Error 255)
+and **`rish`** (a shell-uid shell inside Termux, so the on-device agent no longer
+needs a PC).
+
+Install/start (verified on Android 16 / One UI, Shizuku 13.6.0):
+
+- No F-Droid package exists (page + API 404). Only GitHub releases or Google
+  Play. The GitHub APK installs fine over USB: `adb install -r <apk>`.
+- The 13.6.x start command is **not** the old `start.sh`: open the app → the
+  "Start by connecting to a computer" card → `View command`, which shows
+  `adb shell /data/app/~~…/lib/arm64/libshizuku.so`. Running that prints
+  `info: shizuku_server pid is <pid>`; confirm with `ps -A | grep shizuku`
+  (`shell <pid> shizuku_server`).
+- `pm grant <pkg> moe.shizuku.manager.permission.API_V23` works for apps that
+  declare the permission (Tasker does) — `prot=dangerous`.
+- **Whitelist Shizuku from battery optimisation or nothing works**: without
+  `dumpsys deviceidle whitelist +moe.shizuku.privileged.api` both rish and
+  Tasker fail with *"Request timeout. The connection … may be blocked by your
+  system"*. `am set-standby-bucket moe.shizuku.privileged.api active` and
+  `pm grant … POST_NOTIFICATIONS` also help.
+- Authorization is a per-app switch on the app's "Tap to manage authorized
+  apps" screen (`Switch` nodes: X-plore off, Tasker/Termux on here) — the
+  "Authorized N applications" count line goes stale, so read the switches.
+
+`rish` setup (needs the dex in the terminal app's **private** dir — Android 14+
+refuses a writable dex, so /sdcard is not usable):
+
+1. `unzip -o shizuku.apk assets/rish assets/rish_shizuku.dex` (both are inside
+   the APK).
+2. Push them to `/sdcard/Download/`, then from inside Termux
+   (`cp` them to `~/rish/`, `chmod 500 rish`, `chmod 400 rish_shizuku.dex`).
+3. Run with the app id and a sane PATH (the script needs `getprop` from
+   `/system/bin`):
+   `PATH=/system/bin:$PATH RISH_APPLICATION_ID=com.termux ~/rish/rish -c 'id'`
+   → `uid=2000(shell) … context=u:r:shell:s0`. Verified; `rish -c 'pm list
+   packages | wc -l'` returned 739.
+
+## Driving the UI when taps don't land
+
+- **Buttons under the gesture nav bar silently swallow `input tap`.** Tasker's
+  and Shizuku's bottom-bar buttons are in that strip: repeatedly press
+  `input keyevent 61` (TAB) until `uiautomator dump` shows the target with
+  `focused="true"`, then `input keyevent 66` (ENTER). Reliable where
+  coordinates fail.
+- **`uiautomator dump` + pull + parse locally** beats grepping on-device:
+  toybox `grep -E` rejects `{3,300}` ranges, and the XML has `&amp;` entities.
+  Pull to the PC and parse with Python (print text + bounds + checked state).
+- **Text fields: clear with `input keycombination 113 29`** (Ctrl+A) then
+  `keyevent 67`, not by spamming DELs — a mid-string cursor turns "clear +
+  retype" into a concatenated mess.
+- **Termux's terminal text is invisible to uiautomator.** Drive it with
+  `input text 'bash%s/sdcard/Download/<script>.sh'` (`%s` = space) + Enter, and
+  have the script `exec > /sdcard/Download/<script>.result 2>&1` so you can read
+  the output back over adb. Re-launching Termux fresh before typing is
+  dramatically more reliable than typing into an existing session.
+- Tasker's **Test Action** confirms with a dialog (YES ≈ 884,1419) before
+  running; the green ▶ in the action editor's toolbar is the same thing.
+
 ## Commands
 
 ```
