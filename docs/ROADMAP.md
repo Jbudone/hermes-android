@@ -226,6 +226,34 @@ by one):
         pruned; the undo path for the 7 frozen packages currently expires with
         it. Move to a durable state dir and/or export the live
         frozen/restricted set on every apply.
+16. [~] **Shizuku — PC-free privileged bridge** (priority; asked about on
+        2026-11-15 but never recorded anywhere). Non-root app that runs a
+        shell-uid (uid 2000) server and lets other apps make the privileged
+        calls we currently need adb for; it can start **on the device** via
+        wireless debugging (Android 11+, no PC), and Tasker 6.6.2+ has native
+        "run commands with Shizuku" in Run Shell. Limits: shell uid, not root;
+        needs a start after every reboot; and it is a privilege broker —
+        whichever app gets the grant can run shell commands, so scope it
+        deliberately (grant Termux/Tasker only, not the LLM agent where a prompt
+        injection would become shell-level control).
+        STATUS 2026-11-15: **installed and running.** Source: the pinned GitHub
+        release — F-Droid carries nothing (package page and API both 404) and
+        the F-Droid client isn't on the phone, so Play or the GitHub artifact
+        were the only options. Artifact v13.6.0.r1086.2650830c, APK sha256
+        `6e273ab0e991c4e79bc8b1bbb9b9dd739ccac1a8712a541a214078886b7b790f`, size
+        2571773 B == published, on-device `PackageSignatures` v2 hash 4704561,
+        targetSdk 36. The 13.6.x start command is **not** the old `start.sh`
+        path: the app shows
+        `adb shell /data/app/~~…/moe.shizuku.privileged.api-…/lib/arm64/libshizuku.so`
+        and running it prints `info: shizuku_server pid is <pid>`; verified
+        `shell <pid> shizuku_server` with `Uid: 2000`, app UI "Shizuku is
+        running", 0 authorized apps. NEXT: grant Termux/Tasker, set up `rish`
+        ("Use Shizuku in terminal apps") so the on-device agent gets a shell-uid
+        shell, then the Tasker Run Shell + Shizuku test of `settings put global
+        adb_wifi_enabled 1` (today's Error 255). A reboot still needs the
+        on-device wireless-debugging tap. UI TIP: the app's bottom-bar button
+        sits under the gesture nav bar so tap-by-coordinates silently fails —
+        press `input keyevent 61` (TAB) until focus reaches it, then 66.
 
 Doc/reality drift found 2026-11-11 (fix as part of #3):
 - ZeroTier is running as an always-on VPN (see #9).
